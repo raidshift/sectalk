@@ -1,0 +1,8 @@
+#!/bin/sh
+buildNum=$(grep -E '"version": "[0-9]+",' ./package.json | sed -e 's/.*"version": "\([[:digit:]]*\)".*/\1/')
+incr=1
+echo $buildNum
+buildNum=`expr $buildNum + $incr`
+echo $buildNum
+sed -e "s/\(.*\"version\": \"\)\([[:digit:]]*\)\(\".*\)/\1$buildNum\3/g" package.json > package.json.tmp
+mv package.json.tmp package.json
