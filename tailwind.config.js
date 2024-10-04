@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-    content: ["./src/**/*.{html,js,ts,tsx}"],
+    content: ["./websrc/**/*.{html,js,ts,tsx}"],
     theme: {
         fontFamily: {
             'mono': ['courier-new', 'courier', 'monospace'],

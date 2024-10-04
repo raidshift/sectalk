@@ -1,12 +1,12 @@
 {
   "name": "sectalk",
   "version": "1",
-  "main": "src/index.html",
+  "main": "websrc/index.html",
   "scripts": {
     "dev": "npm run dev:build && npm run dev:serve & npm run dev:watch_esbuild & npm run dev:watch_tailwind",
-    "dev:build": "rm -rf dev && mkdir dev && ln ./src/index.html ./dev/index.html && ln ./src/sectalk.png ./dev/sectalk.png && npx esbuild ./src/app.tsx --bundle --target=es6 --outfile=./dev/index.js --minify && npx tailwindcss -i ./src/input.css -o ./dev/index.css --minify",
-    "dev:watch_esbuild": "npx esbuild ./src/app.tsx --bundle --target=es6 --outfile=./dev/index.js --watch --minify",
-    "dev:watch_tailwind": "npx tailwindcss -i ./src/input.css -o ./dev/index.css --watch --minify",
+    "dev:build": "rm -rf dev && mkdir dev && ln ./websrc/index.html ./dev/index.html && ln ./websrc/sectalk.png ./dev/sectalk.png && npx esbuild ./websrc/app.tsx --bundle --target=es6 --outfile=./dev/index.js --minify && npx tailwindcss -i ./websrc/input.css -o ./dev/index.css --minify",
+    "dev:watch_esbuild": "npx esbuild ./websrc/app.tsx --bundle --target=es6 --outfile=./dev/index.js --watch --minify",
+    "dev:watch_tailwind": "npx tailwindcss -i ./websrc/input.css -o ./dev/index.css --watch --minify",
     "dev:serve": "lite-server -c bs-config.json > /dev/null",
     "build": "./inc_build_num && rm -rf dist && mkdir dist && npm run dev:build && npx html-inline-external --src dev/index.html --minify >> dist/index.html"
   },
