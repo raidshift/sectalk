@@ -31,6 +31,7 @@ function removeTmpDivs() {
 
 function App() {
   const [hideTerminal, setHideTerminal] = useState(true);
+  const [terminateApp, setTerminateApp] = useState(false);
   const [inputType, setInputType] = useState("password");
   const [inputMessage, setInputMessage] = useState('');
   const [showMsgBytes, setShowMsgBytes] = useState(false);
@@ -60,18 +61,30 @@ function App() {
 
     const socket = new WebSocket(wsUrl);
 
+    function hideTerminal(hide:boolean) {
+      setHideTerminal(hide);
+
+      if (!hide) {
+        setTimeout(() => {
+          inputRef.current?.focus();
+          console.log("FOCUSING");
+        }, 200);
+      }
+    }
+
 
     socket.onopen = () => {
       appState = AppState.AWAIT_SECRET_KEY_FROM_USER;
-      inputRef.current?.focus();
+      // inputRef.current?.focus();
     };
 
     socket.onclose = () => {
+      setTerminateApp(true);
+      hideTerminal(true);
       addMessage(
         <div className="text-red-500">
-          Disconnected from server
+          disconnected from server
         </div>);
-      setHideTerminal(true);
     };
 
     socket.onmessage = function (event) {
@@ -83,7 +96,7 @@ function App() {
         if (appState === AppState.AWAIT_SECRET_KEY_FROM_USER) {
           verifySigMsg = Uint8Array.from(bytes);
           setPlaceHolder("Enter your secret key");
-          setHideTerminal(false);
+          hideTerminal(false);
 
         } else if (appState === AppState.AWAITING_ROOM_ID_FROM_SERVER) {
           const roomId = Array.from(bytes)
@@ -98,7 +111,7 @@ function App() {
 
           appState = AppState.AWAIT_MESSAGES;
           setShowMsgBytes(true);
-          setHideTerminal(false);
+          hideTerminal(false);
 
 
         } else if (appState === AppState.AWAIT_MESSAGES) {
@@ -128,7 +141,7 @@ function App() {
                 &lt;&nbsp;{decryptedString.trim()}
               </div>
             );
-          setHideTerminal(false);
+          hideTerminal(false);
 
         }
       })
@@ -223,7 +236,7 @@ function App() {
           );
 
           socket.send(combinedBytes);
-          setHideTerminal(true);
+          hideTerminal(true);
 
           appState = AppState.AWAITING_ROOM_ID_FROM_SERVER;
         }
@@ -293,7 +306,7 @@ function App() {
           </div>
         </div>
       </div>
-      <div style={{ display: hideTerminal ? 'none' : 'block' }}>
+      <div style={{ display: hideTerminal || terminateApp ? 'none' : 'block' }}>
         <form onSubmit={handleFormSubmit} className="flex flex-row justify-center align-center text-emerald-500">
           <div>&gt;&nbsp;</div>
           <input
@@ -312,7 +325,7 @@ function App() {
         ) : null
         }
       </div>
-      <div style={{ display: !hideTerminal ? 'none' : 'block' }} className="text-emerald-500">
+      <div style={{ display: !hideTerminal || terminateApp ? 'none' : 'block' }} className="text-emerald-500">
         <div className="spinner"></div>
       </div>
     </>
