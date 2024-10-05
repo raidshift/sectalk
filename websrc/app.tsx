@@ -30,7 +30,7 @@ function removeTmpDivs() {
 }
 
 function App() {
-  const [hideTerminal, setHideTerminal] = useState(false);
+  const [hideTerminal, setHideTerminal] = useState(true);
   const [inputType, setInputType] = useState("password");
   const [inputMessage, setInputMessage] = useState('');
   const [showMsgBytes, setShowMsgBytes] = useState(false);
@@ -68,7 +68,7 @@ function App() {
 
     socket.onclose = () => {
       addMessage(
-        <div className="border-l-4 border-red-500 pl-4">
+        <div className="text-red-500">
           Disconnected from server
         </div>);
       setHideTerminal(true);
@@ -82,25 +82,24 @@ function App() {
 
         if (appState === AppState.AWAIT_SECRET_KEY_FROM_USER) {
           verifySigMsg = Uint8Array.from(bytes);
-
-          // addMessage(
-          //   <div className="tmp">Enter your secret key</div>
-          // );
-
           setPlaceHolder("Enter your secret key");
+          setHideTerminal(false);
+
         } else if (appState === AppState.AWAITING_ROOM_ID_FROM_SERVER) {
           const roomId = Array.from(bytes)
             .map(b => b.toString(16).padStart(2, '0'))
             .join('');
 
           addMessage(
-            <span className="text-gray-400 text-xs">You can now send end-to-end encrypted messages to your online peer.</span>
+            <div className="text-gray-400 text-xs">You can now send end-to-end encrypted messages to your online peer.</div>
           );
 
           setPlaceHolder("Enter your message")
 
           appState = AppState.AWAIT_MESSAGES;
           setShowMsgBytes(true);
+          setHideTerminal(false);
+
 
         } else if (appState === AppState.AWAIT_MESSAGES) {
           const decoder = new TextDecoder('utf-8');
@@ -129,6 +128,7 @@ function App() {
                 &lt;&nbsp;{decryptedString.trim()}
               </div>
             );
+          setHideTerminal(false);
 
         }
       })
@@ -141,14 +141,6 @@ function App() {
       ReactDOM.createRoot(node).render(msg);
 
       hist.appendChild(node);
-
-      // const lastChild = hist.lastElementChild;
-      // if (lastChild) {
-      //   hist.insertBefore(node, lastChild);
-      // } else {
-      //   hist.appendChild(node);
-      // }
-
     }
 
     new MutationObserver(() => {
@@ -222,15 +214,16 @@ function App() {
               <div className="text-gray-400 text-xs">Peer public ID</div>
               {/* <div className="text-sky-500 text-sm">{msg}</div> */}
               <input
-              type="text"
-              value={msg}
-              readOnly
-              className="text-sm text-sky-500"
-            />
+                type="text"
+                value={msg}
+                readOnly
+                className="text-sm text-sky-500"
+              />
             </div>
           );
 
           socket.send(combinedBytes);
+          setHideTerminal(true);
 
           appState = AppState.AWAITING_ROOM_ID_FROM_SERVER;
         }
@@ -292,21 +285,12 @@ function App() {
         <div className="histitem">
           <div className="flex text-gray-400 justify-between">
             <div>
-              
-            SecTalk <span className="text-xs">(<a href="https://github.com/raidshift/sectalk" target="_blank" className="text-gray-400 hover:text-gray-300">github.com/raidshift/sectalk</a>)</span>
+              sectalk <span className="text-xs">(<a href="https://github.com/raidshift/sectalk" target="_blank" className="text-gray-400 hover:text-gray-300">github.com/raidshift/sectalk</a>)</span>
             </div>
             <div className="text-xs text-gray-700">
               (build {version})
             </div>
           </div>
-          {/* <ul>
-          <li className="text-gray-400 text-sm">
-            A secure instant messenger with robust end-to-end encryption.
-          </li>
-          <li className="text-gray-400 text-sm">
-            Visit <a href="https://github.com/raidshift/sectalk" target="_blank" className="text-gray-400 hover:text-gray-300">https://github.com/raidshift/sectalk</a> for more details.
-          </li>
-        </ul> */}
         </div>
       </div>
       <div style={{ display: hideTerminal ? 'none' : 'block' }}>
@@ -327,6 +311,9 @@ function App() {
           </div>
         ) : null
         }
+      </div>
+      <div style={{ display: !hideTerminal ? 'none' : 'block' }} className="text-emerald-500">
+        <div className="spinner"></div>
       </div>
     </>
   );

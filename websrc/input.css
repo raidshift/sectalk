@@ -23,3 +23,21 @@ ul {
 input[type="text"],input[type="password"] {
   @apply bg-gray-900 border-none  outline-none w-full;
 }
+
+.spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  vertical-align: text-bottom;
+  border: 0.10rem solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  -webkit-animation: 0.75s linear infinite spinner;
+  animation: 0.75s linear infinite spinner;
+}
+
+@keyframes spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
