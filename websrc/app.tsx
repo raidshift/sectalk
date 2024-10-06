@@ -132,13 +132,30 @@ function App() {
 
           yourMsg ?
             addMessage(
-              <div className={`text-emerald-500`}>
-                &gt;&nbsp;{decryptedString.trim()}
+              // <div className={`text-emerald-500`}>
+              //   &gt;&nbsp;{decryptedString.trim()}
+              // </div>
+
+              <div className="flex justify-end">
+                <div className=" bg-emerald-900 rounded-2xl p-2 w-full sm:w-5/6">
+                  <div className="text-emerald-500 text-xs text-right">You</div>
+                  <div className="text-sm text-emerald-400 bg-emerald-900 text-left">
+                    {decryptedString.trim()}
+                  </div>
+                </div>
               </div>
             ) :
             addMessage(
-              <div className={` text-sky-500`}>
-                &lt;&nbsp;{decryptedString.trim()}
+              // <div className={` text-sky-500`}>
+              //   &lt;&nbsp;{decryptedString.trim()}
+              // </div>
+              <div className="flex justify-start">
+                <div className=" bg-sky-900 rounded-2xl p-2 w-full sm:w-5/6">
+                  <div className="text-sky-500 text-xs text-right">You</div>
+                  <div className="text-sm text-sky-400 bg-sky-900 text-left">
+                    {decryptedString.trim()}
+                  </div>
+                </div>
               </div>
             );
           hideTerminal(false);
@@ -184,22 +201,18 @@ function App() {
 
         removeTmpDivs()
         addMessage(
-          <div className="flex justify-end">
-            <div className=" bg-gray-800 rounded-2xl p-2 w-full sm:w-5/6">
-              <div className="text-gray-400 text-xs text-right">Your public ID</div>
+          <div className="flex justify-center">
+            <div className=" bg-emerald-900 rounded-2xl p-2 w-full md:w-5/6">
+              <div className="text-emerald-500 text-xs text-left">Your public ID</div>
               <input
                 type="text"
                 value={publicKey}
                 readOnly
-                className="text-sm text-emerald-500 bg-gray-800 text-right"
+                className="text-sm text-emerald-400 bg-emerald-900 text-left"
               />
             </div>
           </div>
         );
-
-        // addMessage(
-        //   <div className="tmp">Enter ID of peer</div>
-        // );
 
         setInputType("text");
         setPlaceHolder("Enter public ID of your peer");
@@ -224,15 +237,16 @@ function App() {
           );
           removeTmpDivs()
           addMessage(
-            <div className="border rounded-lg p-2 border-gray-400">
-              <div className="text-gray-400 text-xs">Peer public ID</div>
-              {/* <div className="text-sky-500 text-sm">{msg}</div> */}
-              <input
-                type="text"
-                value={msg}
-                readOnly
-                className="text-sm text-sky-500"
-              />
+            <div className="flex justify-center">
+              <div className=" bg-sky-900 rounded-2xl p-2 w-full md:w-5/6">
+                <div className="text-sky-500 text-xs text-left">Peer public ID</div>
+                <input
+                  type="text"
+                  value={msg}
+                  readOnly
+                  className="text-sm text-sky-400 bg-sky-900 text-left"
+                />
+              </div>
             </div>
           );
 
