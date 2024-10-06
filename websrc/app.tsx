@@ -61,7 +61,7 @@ function App() {
 
     const socket = new WebSocket(wsUrl);
 
-    function hideTerminal(hide:boolean) {
+    function hideTerminal(hide: boolean) {
       setHideTerminal(hide);
 
       if (!hide) {
@@ -184,15 +184,16 @@ function App() {
 
         removeTmpDivs()
         addMessage(
-          <div className="border rounded-lg p-2 border-gray-400">
-            <div className="text-gray-400 text-xs">Your public ID</div>
-            {/* <div className="text-emerald-500 text-sm">{publicKey}</div> */}
-            <input
-              type="text"
-              value={publicKey}
-              readOnly
-              className="text-sm text-emerald-500"
-            />
+          <div className="flex justify-end">
+            <div className=" bg-gray-800 rounded-2xl p-2 w-full sm:w-5/6">
+              <div className="text-gray-400 text-xs text-right">Your public ID</div>
+              <input
+                type="text"
+                value={publicKey}
+                readOnly
+                className="text-sm text-emerald-500 bg-gray-800 text-right"
+              />
+            </div>
           </div>
         );
 
@@ -315,7 +316,7 @@ function App() {
             onChange={handleInputChange}
             ref={inputRef}
             placeholder={placeholder}
-            className="text-emerald-500 placeholder-emerald-700"
+            className="text-emerald-500 placeholder-emerald-700 bg-gray-900"
           />
         </form>
         {showMsgBytes && msgBytes > 0 ? (

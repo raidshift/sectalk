@@ -21,7 +21,7 @@ ul {
 }
 
 input[type="text"],input[type="password"] {
-  @apply bg-gray-900 border-none  outline-none w-full;
+  @apply border-none  outline-none w-full;
 }
 
 .spinner {
