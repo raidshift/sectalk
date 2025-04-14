@@ -1,6 +1,6 @@
 {
   "name": "sectalk",
-  "version": "1",
+  "version": "2",
   "main": "websrc/index.html",
   "scripts": {
     "dev": "npm run dev:build && npm run dev:serve & npm run dev:watch_esbuild & npm run dev:watch_tailwind",

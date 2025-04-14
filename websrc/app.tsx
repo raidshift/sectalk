@@ -60,10 +60,10 @@ function App() {
 
 
     // remote server url
-    const wsUrl = "https://sectalk.my.to/ws/"
+    // const wsUrl = "https://sectalk.my.to/ws/"
 
     // local server url:
-    // const wsUrl = `http://localhost:3030/ws/`
+    const wsUrl = `http://localhost:3030/ws/`
 
     const socket = new WebSocket(wsUrl);
 
