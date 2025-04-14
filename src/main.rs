@@ -5,9 +5,11 @@ use once_cell::sync::Lazy;
 use rand_chacha::ChaCha20Rng;
 use rand_core::{RngCore, SeedableRng};
 use secp256k1::{self, PublicKey, Secp256k1};
+use tokio::time::timeout;
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 use warp::ws::{Message, WebSocket};
@@ -153,7 +155,7 @@ async fn handle_session(ws: WebSocket) {
         send(&mut tx_guard, &session_id, &verify_sig_msg).await;
     }
 
-    while let Some(Ok(ws_message)) = rx.next().await {
+    while let Ok(Some(Ok(ws_message))) = timeout(Duration::from_secs(60), rx.next()).await {
         let ws_message_bytes = ws_message.as_bytes();
 
         match room {

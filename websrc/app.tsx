@@ -24,10 +24,16 @@ const isHex = (str: string) => /^[0-9a-fA-F]+$/.test(str);
 const MSG_LEN = 100;
 const MSG_MAX_BYTES = 99;
 
-function removeTmpDivs() {
-  const tmpDivs = document.querySelectorAll('div.tmp');
-  tmpDivs.forEach(div => div.remove());
+// function removeTmpDivs() {
+//   const tmpDivs = document.querySelectorAll('div.tmp');
+//   tmpDivs.forEach(div => div.remove());
+// }
+
+function removeHistItemDivs() {
+  const histItemDivs = document.querySelectorAll('div.histitem');
+  histItemDivs.forEach(div => div.remove());
 }
+
 
 function App() {
   const [hideTerminal, setHideTerminal] = useState(true);
@@ -54,10 +60,10 @@ function App() {
 
 
     // remote server url
-    const wsUrl = "https://xchange.my.to/ws/"
+    // const wsUrl = "https://sectalk.my.to/ws/"
 
     // local server url:
-    // const wsUrl = `http://localhost:3030/ws/`
+    const wsUrl = `http://localhost:3030/ws/`
 
     const socket = new WebSocket(wsUrl);
 
@@ -81,9 +87,10 @@ function App() {
     socket.onclose = () => {
       setTerminateApp(true);
       hideTerminal(true);
+      removeHistItemDivs();
       addMessage(
-        <div className="text-red-500">
-          disconnected from server
+        <div className="text-red-400 text-sm">
+          Disconnected from server
         </div>);
     };
 
@@ -199,7 +206,7 @@ function App() {
         const signature = keyPair.sign(verifySigMsg, { canonical: true });
         signatureHex = signature.r.toString('hex').padStart(64, '0') + signature.s.toString('hex').padStart(64, '0');
 
-        removeTmpDivs()
+        // removeTmpDivs()
         addMessage(
           <div className="flex text-gray-400 text-sm w-full">
             <div>
@@ -235,7 +242,7 @@ function App() {
           const combinedBytes = new Uint8Array(
             combined.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []
           );
-          removeTmpDivs()
+          // removeTmpDivs()
           addMessage(
             <div className="flex text-gray-400 text-sm w-full">
               <div>
@@ -309,24 +316,20 @@ function App() {
 
   return (
     <>
-      <div id="hist">
-        <div className="histitem">
-          <div className="flex text-gray-400 justify-between">
-            <div>
-              <span className="text-xl font-bold">sectalk</span>
-            </div>
-            <div className="text-xs text-gray-700">
-              <span className="text-xs"><a href="https://github.com/raidshift/sectalk" target="_blank" className="text-gray-700 hover:text-gray-600">github.com/raidshift/sectalk</a></span>
-              &nbsp;|&nbsp;build 1.0.{version}
-            </div>
-          </div>
+      <div className="flex text-gray-400 justify-between">
+        <div>
+          <span className="text-xl font-bold">sectalk</span>
         </div>
-        <div className="histitem">
+        <div className="text-xs text-gray-700">
+          <span className="text-xs"><a href="https://github.com/raidshift/sectalk" target="_blank" className="text-gray-700 hover:text-gray-600">build 1.0.{version}</a></span>
+        </div>
+      </div>
 
-          <div className=" text-gray-400 text-sm">
-            A peer-to-peer, end-to-end encrypted messaging protocol
-          </div>
-        </div>
+      <div className=" text-gray-400 text-sm">
+        A peer-to-peer, end-to-end encrypted messaging protocol
+      </div>
+      <div id="hist">
+
       </div>
       <div className="text-sm" style={{ display: hideTerminal || terminateApp ? 'none' : 'block' }}>
         <form onSubmit={handleFormSubmit} className="flex flex-row justify-center align-center text-emerald-400">
