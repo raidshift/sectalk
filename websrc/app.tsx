@@ -60,10 +60,10 @@ function App() {
 
 
     // remote server url
-    // const wsUrl = "https://sectalk.my.to/ws/"
+    const wsUrl = "https://sectalk.my.to/ws/"
 
     // local server url:
-    const wsUrl = `http://localhost:3030/ws/`
+    // const wsUrl = `http://localhost:3030/ws/`
 
     const socket = new WebSocket(wsUrl);
 
@@ -324,7 +324,6 @@ function App() {
           <span className="text-xs"><a href="https://github.com/raidshift/sectalk" target="_blank" className="text-gray-700 hover:text-gray-600">build 1.0.{version}</a></span>
         </div>
       </div>
-
       <div className=" text-gray-400 text-sm">
         A peer-to-peer, end-to-end encrypted messaging protocol
       </div>
