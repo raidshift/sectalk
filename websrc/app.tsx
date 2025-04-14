@@ -314,10 +314,10 @@ function App() {
           <div className="flex text-gray-400 justify-between">
             <div>
               <span className="text-xl font-bold">sectalk</span>
-              {/* <span className="text-xs">(<a href="https://github.com/raidshift/sectalk" target="_blank" className="text-gray-400 hover:text-gray-300">github.com/raidshift/sectalk</a>)</span> */}
             </div>
             <div className="text-xs text-gray-700">
-              (build {version})
+              <span className="text-xs"><a href="https://github.com/raidshift/sectalk" target="_blank" className="text-gray-700 hover:text-gray-600">github.com/raidshift/sectalk</a></span>
+              &nbsp;|&nbsp;(build {version})
             </div>
           </div>
         </div>
