@@ -15,7 +15,7 @@
   "description": "^0.0.4",
   "dependencies": {
     "@types/libsodium-wrappers": "^0.7.14",
-    "@types/react": "18.3.11",
+    "@types/react": "19.1.1",
     "@types/elliptic": "^6.4.18",
     "bignumber.js": "^9.1.2",
     "elliptic": "^6.5.7",
@@ -23,9 +23,9 @@
     "libsodium-wrappers": "^0.7.15",
     "html-inline-external": "^1.0.10",
     "lite-server": "^2.6.1",
-    "esbuild": "0.24.0",
-    "tailwindcss": "3.4.13",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "esbuild": "0.25.2",
+    "tailwindcss": "4.1.3",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
   }
 }
