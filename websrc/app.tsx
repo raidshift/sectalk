@@ -104,7 +104,7 @@ function App() {
             .join('');
 
           addMessage(
-            <div className="text-gray-400 text-sm">You can now send end-to-end encrypted messages to your online peer ...</div>
+            <div className="text-gray-400 text-sm">You can now send end-to-end encrypted messages to your online peer</div>
           );
 
           setPlaceHolder("Enter your message")
@@ -201,7 +201,7 @@ function App() {
 
         removeTmpDivs()
         addMessage(
-          <div className="flex text-emerald-400 text-sm w-full">
+          <div className="flex text-gray-400 text-sm w-full">
             <div>
               Your&nbsp;public&nbsp;key:&nbsp;
             </div>
@@ -209,7 +209,7 @@ function App() {
               type="text"
               value={publicKey}
               readOnly
-              className="text-sm bg-gray-900 text-left"
+              className="text-sm bg-gray-900 text-emerald-400 text-left"
             />
           </div>
         );
@@ -237,7 +237,7 @@ function App() {
           );
           removeTmpDivs()
           addMessage(
-            <div className="flex text-sky-400 text-sm w-full">
+            <div className="flex text-gray-400 text-sm w-full">
               <div>
                 Peer&nbsp;public&nbsp;key:&nbsp;
               </div>
@@ -245,7 +245,7 @@ function App() {
                 type="text"
                 value={msg}
                 readOnly
-                className="text-sm bg-gray-900 text-left"
+                className="text-sm bg-gray-900 text-sky-400 text-left"
               />
             </div>
           );

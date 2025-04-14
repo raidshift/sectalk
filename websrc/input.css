@@ -19,10 +19,6 @@ li {
   @apply my-2;
 }
 
-.histitem {
-  /* @apply mb-1; */
-}
-
 input[type="text"],input[type="password"] {
   @apply border-none  outline-none w-full;
 }
