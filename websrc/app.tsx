@@ -104,7 +104,7 @@ function App() {
             .join('');
 
           addMessage(
-            <div className="text-gray-400 text-sm">You can now send end-to-end encrypted messages to your online peer</div>
+            <div className="text-gray-400 text-sm">Ready to send messages to online peer</div>
           );
 
           setPlaceHolder("Enter your message")
@@ -317,26 +317,16 @@ function App() {
             </div>
             <div className="text-xs text-gray-700">
               <span className="text-xs"><a href="https://github.com/raidshift/sectalk" target="_blank" className="text-gray-700 hover:text-gray-600">github.com/raidshift/sectalk</a></span>
-              &nbsp;|&nbsp;(build {version})
+              &nbsp;|&nbsp;build 1.0.{version}
             </div>
           </div>
         </div>
-        <div className=" text-gray-400 text-sm">
-          A peer-to-peer, end-to-end encrypted messaging protocol
+        <div className="histitem">
+
+          <div className=" text-gray-400 text-sm">
+            A peer-to-peer, end-to-end encrypted messaging protocol
+          </div>
         </div>
-        {/* <div className=" text-gray-400 text-sm">
-          <ul>
-            <li>
-              Your secret key never leaves the client
-            </li>
-            <li>
-              Messages are encrypted on the client and never stored on the server
-            </li>
-            <li>
-              Messages are ephemeral — peers must be online to receive them.
-            </li>
-          </ul>
-        </div> */}
       </div>
       <div className="text-sm" style={{ display: hideTerminal || terminateApp ? 'none' : 'block' }}>
         <form onSubmit={handleFormSubmit} className="flex flex-row justify-center align-center text-emerald-400">
