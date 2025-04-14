@@ -13,11 +13,14 @@
 }
 
 ul {
-  @apply list-disc ms-5 my-2;
+  @apply list-disc ms-3 mt-5;
+}
+li {
+  @apply my-2;
 }
 
 .histitem {
-  @apply mb-1;
+  /* @apply mb-1; */
 }
 
 input[type="text"],input[type="password"] {

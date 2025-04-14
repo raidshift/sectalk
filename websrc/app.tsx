@@ -57,7 +57,7 @@ function App() {
     // const wsUrl = "https://xchange.my.to/ws/"
 
     // local server url:
-    const wsUrl = `http://localhost:3030/ws/` 
+    const wsUrl = `http://localhost:3030/ws/`
 
     const socket = new WebSocket(wsUrl);
 
@@ -104,7 +104,7 @@ function App() {
             .join('');
 
           addMessage(
-            <div className="text-gray-400 text-xs">You can now send end-to-end encrypted messages to your online peer.</div>
+            <div className="text-gray-400 text-sm">You can now send end-to-end encrypted messages to your online peer ...</div>
           );
 
           setPlaceHolder("Enter your message")
@@ -136,11 +136,11 @@ function App() {
               //   &gt;&nbsp;{decryptedString.trim()}
               // </div>
 
-              <div className="flex justify-end">
-                <div className=" bg-emerald-900 rounded-2xl p-2 w-full sm:w-5/6">
-                  <div className="text-emerald-500 text-xs text-right">You</div>
-                  <div className="text-sm text-emerald-400 bg-emerald-900 text-left">
-                    {decryptedString.trim()}
+              <div className="flex justify-start">
+                <div className=" bg-gray-900 rounded-2xl w-full">
+                  {/* <div className="text-emerald-500 text-xs text-start">You</div> */}
+                  <div className="text-sm text-emerald-400 bg-gray-900 text-left">
+                    &gt;&nbsp;{decryptedString.trim()}
                   </div>
                 </div>
               </div>
@@ -150,10 +150,10 @@ function App() {
               //   &lt;&nbsp;{decryptedString.trim()}
               // </div>
               <div className="flex justify-start">
-                <div className=" bg-sky-900 rounded-2xl p-2 w-full sm:w-5/6">
-                  <div className="text-sky-500 text-xs text-right">You</div>
-                  <div className="text-sm text-sky-400 bg-sky-900 text-left">
-                    {decryptedString.trim()}
+                <div className=" bg-gray-900 rounded-2xl w-full">
+                  {/* <div className="text-sky-500 text-xs text-start">Peer</div> */}
+                  <div className="text-sm text-sky-400 bg-gray-900 text-left">
+                    &lt;&nbsp;{decryptedString.trim()}
                   </div>
                 </div>
               </div>
@@ -201,21 +201,21 @@ function App() {
 
         removeTmpDivs()
         addMessage(
-          <div className="flex justify-center">
-            <div className=" bg-emerald-900 rounded-2xl p-2 w-full md:w-5/6">
-              <div className="text-emerald-500 text-xs text-left">Your public ID</div>
-              <input
-                type="text"
-                value={publicKey}
-                readOnly
-                className="text-sm text-emerald-400 bg-emerald-900 text-left"
-              />
+          <div className="flex text-emerald-400 text-sm w-full">
+            <div>
+              Your&nbsp;public&nbsp;key:&nbsp;
             </div>
+            <input
+              type="text"
+              value={publicKey}
+              readOnly
+              className="text-sm bg-gray-900 text-left"
+            />
           </div>
         );
 
         setInputType("text");
-        setPlaceHolder("Enter public ID of your peer");
+        setPlaceHolder("Enter peer public key");
 
         appState = AppState.AWAIT_PEER_PUB_KEY_FROM_USER;
       }
@@ -237,16 +237,16 @@ function App() {
           );
           removeTmpDivs()
           addMessage(
-            <div className="flex justify-center">
-              <div className=" bg-sky-900 rounded-2xl p-2 w-full md:w-5/6">
-                <div className="text-sky-500 text-xs text-left">Peer public ID</div>
-                <input
-                  type="text"
-                  value={msg}
-                  readOnly
-                  className="text-sm text-sky-400 bg-sky-900 text-left"
-                />
+            <div className="flex text-sky-400 text-sm w-full">
+              <div>
+                Peer&nbsp;public&nbsp;key:&nbsp;
               </div>
+              <input
+                type="text"
+                value={msg}
+                readOnly
+                className="text-sm bg-gray-900 text-left"
+              />
             </div>
           );
 
@@ -313,16 +313,33 @@ function App() {
         <div className="histitem">
           <div className="flex text-gray-400 justify-between">
             <div>
-              sectalk <span className="text-xs">(<a href="https://github.com/raidshift/sectalk" target="_blank" className="text-gray-400 hover:text-gray-300">github.com/raidshift/sectalk</a>)</span>
+              <span className="text-xl font-bold">sectalk</span>
+              {/* <span className="text-xs">(<a href="https://github.com/raidshift/sectalk" target="_blank" className="text-gray-400 hover:text-gray-300">github.com/raidshift/sectalk</a>)</span> */}
             </div>
             <div className="text-xs text-gray-700">
               (build {version})
             </div>
           </div>
         </div>
+        <div className=" text-gray-400 text-sm">
+          A peer-to-peer, end-to-end encrypted messaging protocol
+        </div>
+        {/* <div className=" text-gray-400 text-sm">
+          <ul>
+            <li>
+              Your secret key never leaves the client
+            </li>
+            <li>
+              Messages are encrypted on the client and never stored on the server
+            </li>
+            <li>
+              Messages are ephemeral — peers must be online to receive them.
+            </li>
+          </ul>
+        </div> */}
       </div>
-      <div style={{ display: hideTerminal || terminateApp ? 'none' : 'block' }}>
-        <form onSubmit={handleFormSubmit} className="flex flex-row justify-center align-center text-emerald-500">
+      <div className="text-sm" style={{ display: hideTerminal || terminateApp ? 'none' : 'block' }}>
+        <form onSubmit={handleFormSubmit} className="flex flex-row justify-center align-center text-emerald-400">
           <div>&gt;&nbsp;</div>
           <input
             type={inputType}
@@ -330,7 +347,7 @@ function App() {
             onChange={handleInputChange}
             ref={inputRef}
             placeholder={placeholder}
-            className="text-emerald-500 placeholder-emerald-700 bg-gray-900"
+            className="text-emerald-400 placeholder-emerald-700 bg-gray-900"
           />
         </form>
         {showMsgBytes && msgBytes > 0 ? (
@@ -340,7 +357,7 @@ function App() {
         ) : null
         }
       </div>
-      <div style={{ display: !hideTerminal || terminateApp ? 'none' : 'block' }} className="text-emerald-500">
+      <div style={{ display: !hideTerminal || terminateApp ? 'none' : 'block' }} className="text-emerald-400">
         <div className="spinner"></div>
       </div>
     </>
