@@ -8,7 +8,7 @@
   }
 
   div#root {
-    @apply container my-16 p-2 sm:mx-auto font-mono overflow-y-auto bg-gray-900 rounded-lg overflow-x-hidden; /* Disable horizontal scrollbar */
+    @apply container my-16 p-2 sm:mx-auto font-mono overflow-y-auto bg-gray-900 rounded-lg overflow-x-hidden;
   }
 }
 

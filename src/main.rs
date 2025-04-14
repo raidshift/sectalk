@@ -2,7 +2,8 @@ use futures::stream::SplitSink;
 use futures::{SinkExt, StreamExt};
 use log::{debug, error, info};
 use once_cell::sync::Lazy;
-use rand::rngs::OsRng;
+use rand_chacha::ChaCha20Rng;
+use rand_core::{RngCore, SeedableRng};
 use secp256k1::{self, PublicKey, Secp256k1};
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -138,7 +139,9 @@ async fn handle_session(ws: WebSocket) {
     let mut room: Option<Arc<Mutex<Room>>> = None;
     let mut room_key: Option<RoomKey> = None;
     let mut verify_sig_msg: [u8; SIG_MSG_LEN] = [0u8; SIG_MSG_LEN];
-    rand::RngCore::fill_bytes(&mut OsRng, &mut verify_sig_msg);
+
+    let mut rng = ChaCha20Rng::from_os_rng();
+    rng.fill_bytes(&mut verify_sig_msg);
 
     let (tx, mut rx) = ws.split();
     let tx = Arc::new(Mutex::new(tx));
