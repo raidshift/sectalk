@@ -17,6 +17,7 @@ use tokio::time::timeout;
 use uuid::Uuid;
 use warp::ws::{Message, WebSocket};
 use warp::Filter;
+use warp_rate_limit::{with_rate_limit, RateLimitConfig};
 
 const SERVER_ADDRESS: ([u8; 4], u16) = ([127, 0, 0, 1], 3030);
 const CONNECTION_TIMEOUT_SEC: u64 = 5 * 60;
@@ -77,10 +78,6 @@ impl Room {
                 first = u16::from_le_bytes(header_bytes);
 
                 let body_len = file.seek(std::io::SeekFrom::End(0)).unwrap_or(0) - ROOM_FILE_HEADER_LEN as u64;
-
-                debug!("body len              {:?}",body_len);
-                debug!("first                 {:?}",first as u64);
-                debug!("body_len / WS_MSG_LEN {:?}",body_len / WS_MSG_LEN as u64);
 
                 if body_len % WS_MSG_LEN as u64 == 0 && (first as u64) <= (body_len / WS_MSG_LEN as u64) {
                     file_integrity_check_passed = true;
@@ -192,7 +189,10 @@ async fn main() {
         SERVER_ADDRESS.1
     );
 
-    let ws_route = warp::path("ws").and(warp::ws()).map(|ws: warp::ws::Ws| ws.on_upgrade(handle_session));
+    let ws_route = warp::path("ws")
+        .and(warp::ws())
+        .and(with_rate_limit(RateLimitConfig::max_per_minute(60)))
+        .map(|ws: warp::ws::Ws, _| ws.on_upgrade(handle_session));
 
     warp::serve(ws_route).run(SERVER_ADDRESS).await;
 }
