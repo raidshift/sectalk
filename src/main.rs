@@ -77,6 +77,7 @@ impl Room {
         if let Some(peer_tx) = peer_tx {
             let mut tx_guard = peer_tx.lock().await;
             send(&mut tx_guard, id, &[0x00]).await;
+            info!("{}: Kicked peer", id);
         }
 
         *peer_tx = Some(tx);
@@ -100,7 +101,7 @@ impl Rooms {
         Rooms(HashMap::new())
     }
 
-    pub fn add_room(&mut self, room_key: RoomKey) -> Arc<Mutex<Room>> {
+    pub fn get_room(&mut self, room_key: RoomKey) -> Arc<Mutex<Room>> {
         self.0
             .entry(room_key)
             .or_insert_with(|| Arc::new(Mutex::new(Room::new())))
@@ -171,7 +172,7 @@ async fn handle_session(ws: WebSocket) {
     let (tx, mut rx) = ws.split();
     let tx = Arc::new(Mutex::new(tx));
 
-    info!("{:?}: Session established", session_id);
+    info!("{}: Session established", session_id);
 
     {
         let mut tx_guard = tx.lock().await;
@@ -185,7 +186,7 @@ async fn handle_session(ws: WebSocket) {
             None => {
                 if ws_message_bytes.len() != 2 * PUB_KEY_LEN + SIG_LEN {
                     debug!(
-                        "{:?}: Message length: {} expected: {}",
+                        "{}: Message length: {} expected: {}",
                         session_id,
                         ws_message_bytes.len(),
                         2 * PUB_KEY_LEN + SIG_LEN
@@ -203,19 +204,19 @@ async fn handle_session(ws: WebSocket) {
                 };
 
                 if this_peer.is_none() {
-                    debug!("{:?}: Peers must be different", session_id);
+                    debug!("{}: Peers must be different", session_id);
                     break;
                 }
 
                 if !verify_signature(&pka, &ws_message_bytes[2 * PUB_KEY_LEN..], &verify_sig_msg) {
-                    debug!("{:?}: Authentication failed", session_id);
+                    debug!("{}: Authentication failed", session_id);
                     break;
                 }
 
                 room_key = Some(RoomKey::new(&pka, &pkb));
                 {
                     let mut rooms_guard = ROOMS.lock().await;
-                    room = Some(rooms_guard.add_room(room_key.unwrap()));
+                    room = Some(rooms_guard.get_room(room_key.unwrap()));
                 }
 
                 {
@@ -225,7 +226,7 @@ async fn handle_session(ws: WebSocket) {
                         .await;
                 }
 
-                debug!("{:?}: Enrolled in room: {:?}", session_id, &room_key.unwrap().0);
+                debug!("{}: Enrolled in room: {}", session_id, &room_key.unwrap().0);
 
                 let mut tx_guard = tx.lock().await;
                 send(&mut tx_guard, &session_id, &room_key.unwrap().0.to_be_bytes()).await;
@@ -233,7 +234,7 @@ async fn handle_session(ws: WebSocket) {
             Some(ref room) => {
                 if ws_message_bytes.len() != WS_MSG_LEN {
                     debug!(
-                        "{:?}: Message length: {} expected: {}",
+                        "{}: Message length: {} expected: {}",
                         session_id,
                         ws_message_bytes.len(),
                         WS_MSG_LEN
@@ -242,7 +243,7 @@ async fn handle_session(ws: WebSocket) {
                 }
 
                 if this_peer.is_none() {
-                    error!("{:?}: Peer not set", session_id);
+                    error!("{}: Peer not set", session_id);
                     break;
                 }
 
@@ -279,10 +280,10 @@ async fn handle_session(ws: WebSocket) {
             if let Some(room_key) = room_key {
                 let mut rooms_guard = ROOMS.lock().await;
                 rooms_guard.remove_room(room_key);
-                debug!("{:?}: Removed room: {:?}", session_id, &room_key.0);
+                debug!("{}: Removed room: {}", session_id, &room_key.0);
             }
         }
     }
 
-    info!("{:?}: Session closed", session_id);
+    info!("{}: Session closed", session_id);
 }
