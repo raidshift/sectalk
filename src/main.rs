@@ -77,23 +77,6 @@ impl Room {
         };
     }
 
-    // async fn add_session_and_peer(&mut self, session_id: &Uuid, peer: &Peer, tx: Arc<Mutex<SplitSink<WebSocket, Message>>>) {
-    //     self.session_ids.push(session_id.clone());
-    //     self.session_ids.dedup();
-
-    //     let peer_tx = self.get_peer_tx(peer);
-    //     debug!("{}: Peer = {:?}, Tx_old = {:?}, Tx_new = {:?}", session_id, peer, peer_tx, tx);
-
-    //     if let Some(peer_tx) = peer_tx {
-    //         let mut tx_guard = peer_tx.lock().await;
-    //         send(&mut tx_guard, session_id, &[0x02]).await;
-    //         debug!("{}: Kicked peer {:?}", session_id, peer);
-    //     }
-    //     debug!("{}: Add peer {:?}", session_id, peer);
-
-    //     *peer_tx = Some(tx);
-    // }
-
     fn remove_session(&mut self, session_id: &Uuid) {
         if let Some(i) = self.session_ids.iter().position(|id| id == session_id) {
             self.session_ids.remove(i);
