@@ -100,16 +100,15 @@ impl Rooms {
             room_guard.session_ids.dedup();
 
             let peer_tx = room_guard.get_peer_tx(peer);
-            debug!("{}: Peer = {:?}, Tx_old = {:?}, Tx_new = {:?}", session_id, peer, peer_tx, tx);
 
             if let Some(peer_tx) = peer_tx {
                 let mut tx_guard = peer_tx.lock().await;
                 send(&mut tx_guard, session_id, &[0x00]).await;
                 debug!("{}: Kicked peer {:?}", session_id, peer);
             }
-            debug!("{}: Add peer {:?}", session_id, peer);
 
             *peer_tx = Some(tx);
+            debug!("{}: Added peer {:?}", session_id, peer);
         }
 
         debug!("{}: Room: {}", session_id, &room_key.0);
