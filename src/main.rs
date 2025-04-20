@@ -89,9 +89,20 @@ impl Rooms {
         Rooms(HashMap::new())
     }
 
-    async fn claim_room(&mut self, pka: &[u8; PUB_KEY_LEN], pkb: &[u8; PUB_KEY_LEN], session_id: &Uuid, peer: &Peer, tx: Arc<Mutex<SplitSink<WebSocket, Message>>>) -> Arc<Mutex<Room>> {
+    async fn claim_room(
+        &mut self,
+        pka: &[u8; PUB_KEY_LEN],
+        pkb: &[u8; PUB_KEY_LEN],
+        session_id: &Uuid,
+        peer: &Peer,
+        tx: Arc<Mutex<SplitSink<WebSocket, Message>>>,
+    ) -> Arc<Mutex<Room>> {
         let room_key = RoomKey::new(&pka, &pkb);
-        let room = self.0.entry(room_key).or_insert_with(|| Arc::new(Mutex::new(Room::new(room_key)))).clone();
+        let room = self
+            .0
+            .entry(room_key)
+            .or_insert_with(|| Arc::new(Mutex::new(Room::new(room_key))))
+            .clone();
 
         {
             let mut room_guard = room.lock().await;
@@ -131,8 +142,13 @@ fn verify_signature(pka: &[u8], sig: &[u8], message: &[u8]) -> bool {
 
     PublicKey::from_slice(pka)
         .and_then(|public_key| {
-            secp256k1::ecdsa::Signature::from_compact(sig)
-                .and_then(|signature| secp256k1::Message::from_digest_slice(message).and_then(|message| secp256k1_context.verify_ecdsa(&message, &signature, &public_key).map(|_| true)))
+            secp256k1::ecdsa::Signature::from_compact(sig).and_then(|signature| {
+                secp256k1::Message::from_digest_slice(message).and_then(|message| {
+                    secp256k1_context
+                        .verify_ecdsa(&message, &signature, &public_key)
+                        .map(|_| true)
+                })
+            })
         })
         .unwrap_or(false)
 }
@@ -143,11 +159,18 @@ async fn main() {
 
     info!(
         "Starting WebSocket server on {}:{}",
-        SERVER_ADDRESS.0.iter().map(|b| b.to_string()).collect::<Vec<_>>().join("."),
+        SERVER_ADDRESS
+            .0
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<_>>()
+            .join("."),
         SERVER_ADDRESS.1
     );
 
-    let ws_route = warp::path("ws").and(warp::ws()).map(|ws: warp::ws::Ws| ws.on_upgrade(handle_session));
+    let ws_route = warp::path("ws")
+        .and(warp::ws())
+        .map(|ws: warp::ws::Ws| ws.on_upgrade(handle_session));
 
     warp::serve(ws_route).run(SERVER_ADDRESS).await;
 }
@@ -162,7 +185,7 @@ async fn handle_session(ws: WebSocket) {
     let session_id = Uuid::new_v4();
     let mut room: Option<Arc<Mutex<Room>>> = None;
     let mut verify_sig_msg: [u8; SIG_MSG_LEN] = [0u8; SIG_MSG_LEN];
-    let mut this_peer: &Option<Peer> = &None;
+    let mut this_peer: Option<Peer> = None;
 
     let mut rng = ChaCha20Rng::from_os_rng();
     rng.fill_bytes(&mut verify_sig_msg);
@@ -183,7 +206,12 @@ async fn handle_session(ws: WebSocket) {
         match room {
             None => {
                 if ws_message_bytes.len() != 2 * PUB_KEY_LEN + SIG_LEN {
-                    debug!("{}: Message length: {} expected: {}", session_id, ws_message_bytes.len(), 2 * PUB_KEY_LEN + SIG_LEN);
+                    debug!(
+                        "{}: Message length: {} expected: {}",
+                        session_id,
+                        ws_message_bytes.len(),
+                        2 * PUB_KEY_LEN + SIG_LEN
+                    );
                     break;
                 }
 
@@ -191,9 +219,9 @@ async fn handle_session(ws: WebSocket) {
                 let pkb: [u8; PUB_KEY_LEN] = ws_message_bytes[PUB_KEY_LEN..2 * PUB_KEY_LEN].try_into().unwrap();
 
                 this_peer = match pka.cmp(&pkb) {
-                    Ordering::Less => &Some(Peer::A),
-                    Ordering::Greater => &Some(Peer::B),
-                    _ => &None,
+                    Ordering::Less => Some(Peer::A),
+                    Ordering::Greater => Some(Peer::B),
+                    _ => None,
                 };
 
                 if this_peer.is_none() {
@@ -208,7 +236,11 @@ async fn handle_session(ws: WebSocket) {
 
                 {
                     let mut rooms_guard = ROOMS.lock().await;
-                    room = Some(rooms_guard.claim_room(&pka, &pkb, &session_id, this_peer.as_ref().unwrap(), tx.clone()).await);
+                    room = Some(
+                        rooms_guard
+                            .claim_room(&pka, &pkb, &session_id, this_peer.as_ref().unwrap(), tx.clone())
+                            .await,
+                    );
                 }
 
                 let mut tx_guard = tx.lock().await;
@@ -216,7 +248,12 @@ async fn handle_session(ws: WebSocket) {
             }
             Some(ref room) => {
                 if ws_message_bytes.len() != WS_MSG_LEN {
-                    debug!("{}: Message length: {} expected: {}", session_id, ws_message_bytes.len(), WS_MSG_LEN);
+                    debug!(
+                        "{}: Message length: {} expected: {}",
+                        session_id,
+                        ws_message_bytes.len(),
+                        WS_MSG_LEN
+                    );
                     break;
                 }
 
