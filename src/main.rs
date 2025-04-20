@@ -17,6 +17,7 @@ use warp::ws::{Message, WebSocket};
 use warp::Filter;
 
 const SERVER_ADDRESS: ([u8; 4], u16) = ([127, 0, 0, 1], 3030);
+const SESSION_TIMEOUT_SEC: u64 = 60;
 const PUB_KEY_LEN: usize = 33;
 const SIG_LEN: usize = 64;
 const SIG_MSG_LEN: usize = 32;
@@ -28,8 +29,10 @@ struct RoomKey(u64);
 struct Room {
     peer_a_tx: Option<Arc<Mutex<SplitSink<WebSocket, Message>>>>,
     peer_b_tx: Option<Arc<Mutex<SplitSink<WebSocket, Message>>>>,
+    session_ids: Vec<Uuid>,
 }
 
+#[derive(Debug)]
 enum Peer {
     A,
     B,
@@ -61,6 +64,7 @@ impl Room {
         Room {
             peer_a_tx: None,
             peer_b_tx: None,
+            session_ids: Vec::new(),
         }
     }
 
@@ -71,27 +75,30 @@ impl Room {
         };
     }
 
-    pub async fn add_peer(&mut self, tx: Arc<Mutex<SplitSink<WebSocket, Message>>>, peer: &Peer, id: &Uuid) {
+    pub async fn add_session(&mut self, tx: Arc<Mutex<SplitSink<WebSocket, Message>>>, peer: &Peer, session_id: &Uuid) {
+        self.session_ids.push(session_id.clone());
+        self.session_ids.dedup();
+
         let peer_tx = self.get_peer_tx(peer);
+        debug!(
+            "{}: Peer = {:?}, Tx_old = {:?}, Tx_new = {:?}",
+            session_id, peer, peer_tx, tx
+        );
 
         if let Some(peer_tx) = peer_tx {
             let mut tx_guard = peer_tx.lock().await;
-            send(&mut tx_guard, id, &[0x00]).await;
-            info!("{}: Kicked peer", id);
+            send(&mut tx_guard, session_id, &[0x02]).await;
+            debug!("{}: Kicked peer {:?}", session_id, peer);
         }
+        debug!("{}: Add peer {:?}", session_id, peer);
 
         *peer_tx = Some(tx);
     }
 
-    pub fn remove_peer(&mut self, peer: &Peer) {
-        *self.get_peer_tx(peer) = None;
-    }
-
-    pub fn has_peers(&self) -> bool {
-        if self.peer_b_tx.is_none() && self.peer_b_tx.is_none() {
-            true
-        } else {
-            false
+    pub fn remove_session(&mut self, session_id: &Uuid) {
+        // *self.get_peer_tx(peer) = None;
+        if let Some(i) = self.session_ids.iter().position(|id| id == session_id) {
+            self.session_ids.remove(i);
         }
     }
 }
@@ -179,7 +186,7 @@ async fn handle_session(ws: WebSocket) {
         send(&mut tx_guard, &session_id, &verify_sig_msg).await;
     }
 
-    while let Ok(Some(Ok(ws_message))) = timeout(Duration::from_secs(60), rx.next()).await {
+    while let Ok(Some(Ok(ws_message))) = timeout(Duration::from_secs(SESSION_TIMEOUT_SEC), rx.next()).await {
         let ws_message_bytes = ws_message.as_bytes();
 
         match room {
@@ -222,7 +229,7 @@ async fn handle_session(ws: WebSocket) {
                 {
                     let mut room_guard = room.as_ref().unwrap().lock().await;
                     room_guard
-                        .add_peer(tx.clone(), this_peer.as_ref().unwrap(), &session_id)
+                        .add_session(tx.clone(), this_peer.as_ref().unwrap(), &session_id)
                         .await;
                 }
 
@@ -274,9 +281,16 @@ async fn handle_session(ws: WebSocket) {
     if let Some(room) = room {
         let mut room_guard = room.lock().await;
         if let Some(this_peer) = this_peer {
-            room_guard.remove_peer(this_peer);
+            room_guard.remove_session(&session_id);
+            debug!(
+                "{}: Peer {:?} removed from room {}",
+                session_id,
+                this_peer,
+                &room_key.unwrap().0
+            );
         }
-        if !room_guard.has_peers() {
+
+        if room_guard.session_ids.len() == 0 {
             if let Some(room_key) = room_key {
                 let mut rooms_guard = ROOMS.lock().await;
                 rooms_guard.remove_room(room_key);

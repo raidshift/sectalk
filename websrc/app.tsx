@@ -99,6 +99,10 @@ function App() {
       blob.arrayBuffer().then(buffer => {
         const bytes = new Uint8Array(buffer);
 
+        if (bytes.length === 1) {
+          socket.close();
+        }
+
         if (appState === AppState.AWAIT_SECRET_KEY_FROM_USER) {
           verifySigMsg = Uint8Array.from(bytes);
           setPlaceHolder("Enter your secret key");
