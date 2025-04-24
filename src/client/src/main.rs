@@ -4,37 +4,76 @@ use crossterm::{
     execute,
     terminal::{Clear, ClearType, disable_raw_mode, enable_raw_mode},
 };
+use futures_util::StreamExt;
 use std::io::{Write, stdout};
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
+use tokio_tungstenite::{
+    connect_async,
+    tungstenite::{client::IntoClientRequest, protocol::Message},
+};
+
+// const WS_URL: &str = "ws://sectalk.my.to/ws";
+
+const WS_URL: &str = "ws://127.0.0.1:3030/ws/";
 
 fn main() {
     enable_raw_mode().unwrap();
     let mut stdout = stdout();
     let mut input = String::new();
     let mut cursor_pos = 0;
-    let mut message_history = Vec::new();
+    // let mut message_history = Vec::new();
 
     // Create a channel for communication between threads
     let (tx, rx) = mpsc::channel();
 
+    let websocket_tx = tx.clone();
+
     // Spawn a thread that will periodically send messages
     thread::spawn(move || {
-        let automated_messages = [
-            "System: Welcome to the chat!",
-            "System: This is an automated message.",
-            "System: How are you doing today?",
-            "System: Try typing something!",
-            "System: Press ESC to exit the application.",
-        ];
-        let mut msg_index = 0;
+        let rt = tokio::runtime::Runtime::new().unwrap();
 
-        loop {
-            thread::sleep(Duration::from_secs(1));
-            tx.send(automated_messages[msg_index].to_string()).unwrap();
-            msg_index = (msg_index + 1) % automated_messages.len();
-        }
+        rt.block_on(async {
+            let request = WS_URL.into_client_request().unwrap();
+
+            match connect_async(request).await {
+                Ok((ws_stream, _)) => {
+                    println!("WebSocket connected!");
+                    let (_, mut read) = ws_stream.split();
+
+                    // Process incoming messages
+                    while let Some(msg) = read.next().await {
+                        if let Ok(msg) = msg {
+                            match msg {
+                                Message::Text(text) => {
+                                    // Send the message to the main thread
+                                    websocket_tx.send(format!("Server: {}", text)).unwrap_or_else(|e| {
+                                        eprintln!("Error sending message to main thread: {}", e);
+                                    });
+                                }
+                                Message::Close(_) => {
+                                    websocket_tx
+                                        .send("System: WebSocket connection closed".to_string())
+                                        .unwrap_or_default();
+                                    break;
+                                }
+                                _ => {} // Ignore other message types for simplicity
+                            }
+                        } else {
+                            websocket_tx
+                                .send("System: Error receiving message".to_string())
+                                .unwrap_or_default();
+                        }
+                    }
+                }
+                Err(e) => {
+                    websocket_tx
+                        .send(format!("System: Failed to connect to WebSocket server: {}", e))
+                        .unwrap_or_default();
+                }
+            }
+        });
     });
 
     print_prompt(&input, cursor_pos);
@@ -51,7 +90,7 @@ fn main() {
 
             // Print the automated message
             println!("> {}", message);
-            message_history.push(message);
+            // message_history.push(message);
 
             // Restore the input prompt
             print_prompt(&current_input, current_pos);
@@ -87,18 +126,36 @@ fn main() {
                     }
                     KeyCode::Enter => {
                         if !input.is_empty() {
-                            execute!(stdout, MoveToNextLine(1), Clear(ClearType::CurrentLine), MoveToColumn(0)).unwrap();
+                            execute!(
+                                stdout,
+                                MoveToNextLine(1),
+                                Clear(ClearType::CurrentLine),
+                                MoveToColumn(0)
+                            )
+                            .unwrap();
                             let user_message = format!("> {}", input);
                             println!("{}", user_message);
-                            message_history.push(user_message);
+                            // message_history.push(user_message);
                             input.clear();
                             cursor_pos = 0;
                         }
                     }
                     KeyCode::Esc => {
-                        execute!(stdout, MoveToNextLine(1), Clear(ClearType::CurrentLine), MoveToColumn(0)).unwrap();
+                        execute!(
+                            stdout,
+                            MoveToNextLine(1),
+                            Clear(ClearType::CurrentLine),
+                            MoveToColumn(0)
+                        )
+                        .unwrap();
                         println!("Exiting...");
-                        execute!(stdout, MoveToNextLine(1), Clear(ClearType::CurrentLine), MoveToColumn(0)).unwrap();
+                        execute!(
+                            stdout,
+                            MoveToNextLine(1),
+                            Clear(ClearType::CurrentLine),
+                            MoveToColumn(0)
+                        )
+                        .unwrap();
                         break;
                     }
                     _ => {}
