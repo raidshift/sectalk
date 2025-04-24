@@ -28,7 +28,7 @@ fn main() {
     // Create a channel for communication between threads
     let (tx, rx) = mpsc::channel();
 
-    let websocket_tx = tx.clone();
+    let thread_tx = tx.clone();
 
     // Spawn a thread that will periodically send messages
     thread::spawn(move || {
@@ -48,12 +48,15 @@ fn main() {
                             match msg {
                                 Message::Text(text) => {
                                     // Send the message to the main thread
-                                    websocket_tx.send(format!("Server: {}", text)).unwrap_or_else(|e| {
+                                    thread_tx.send(format!("Server: {}", text)).unwrap_or_else(|e| {
                                         eprintln!("Error sending message to main thread: {}", e);
                                     });
                                 }
+                                Message::Binary(_) => {
+                                    println!("Received binary message, ignoring.");
+                                }
                                 Message::Close(_) => {
-                                    websocket_tx
+                                    thread_tx
                                         .send("System: WebSocket connection closed".to_string())
                                         .unwrap_or_default();
                                     break;
@@ -61,14 +64,14 @@ fn main() {
                                 _ => {} // Ignore other message types for simplicity
                             }
                         } else {
-                            websocket_tx
+                            thread_tx
                                 .send("System: Error receiving message".to_string())
                                 .unwrap_or_default();
                         }
                     }
                 }
                 Err(e) => {
-                    websocket_tx
+                    thread_tx
                         .send(format!("System: Failed to connect to WebSocket server: {}", e))
                         .unwrap_or_default();
                 }
@@ -126,6 +129,11 @@ fn main() {
                     }
                     KeyCode::Enter => {
                         if !input.is_empty() {
+
+                            tx.clone().send(input.clone()).unwrap_or_else(|e| {
+                                eprintln!("Error sending message to WebSocket: {}", e);
+                            });
+
                             execute!(
                                 stdout,
                                 MoveToNextLine(1),
