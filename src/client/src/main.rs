@@ -6,7 +6,6 @@ use crossterm::{
 };
 use futures_util::{SinkExt, StreamExt};
 use hex::ToHex;
-use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 use std::{
@@ -16,6 +15,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
     },
 };
+use std::{os::macos::raw::stat, sync::mpsc};
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{client::IntoClientRequest, protocol::Message},
@@ -25,17 +25,32 @@ use tokio_tungstenite::{
 
 const WS_URL: &str = "ws://127.0.0.1:3030/ws/";
 
+enum State {
+    Init,
+    AwaitSecretKeyFromUser,
+    AwaitPeerPubKeyFromUser,
+    AwaitingRoomIdFromServer,
+    AwaitMessages,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+
+    println!("sectalk\nA peer-to-peer, end-to-end encrypted messaging protocol");
+
     enable_raw_mode().unwrap();
     let mut stdout = stdout();
     let mut input = String::new();
     let mut cursor_pos = 0;
 
     let should_exit = Arc::new(AtomicBool::new(false));
+    let mut state = Arc::new(State::Init);
+
     let should_exit_ws = should_exit.clone();
 
     let (tx, rx) = mpsc::channel();
+    // tx.send(format!("Let'sgo")).unwrap();
+
 
     // let thread_tx = tx.clone();
     let request = WS_URL.into_client_request()?;
@@ -44,22 +59,46 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (mut ws_write, mut ws_read) = ws_connection.0.split();
 
-    println!("WebSocket connected!");
+    // println!("WebSocket connected!");
 
     let runtime = tokio::runtime::Runtime::new()?;
+
+
 
     thread::spawn(move || {
         runtime.block_on(async {
             while let Some(msg) = ws_read.next().await {
-                if let Ok(msg) = msg {
-                    match msg {
-                        Message::Binary(msg) => {
+                if let Ok(msg) = msg.map(|msg| msg.into_data()) {
+                    let new_state: Arc<State>;
+                    match *state {
+                        State::Init => {
+                            tx.send(format!("verify_sig_msg = {}", msg.encode_hex::<String>())).unwrap();
+                            new_state = Arc::new(State::AwaitingRoomIdFromServer);
+                        }
+                        // State::AwaitSecretKeyFromUser => {
+                        //     tx.send("Server: Awaiting secret key from user...".to_string()).unwrap();
+                        //     new_state = Arc::new(State::AwaitSecretKeyFromUser);
+
+                        // }
+                        // State::AwaitPeerPubKeyFromUser => {
+                        //     tx.send("Server: Awaiting peer public key from user...".to_string()).unwrap();
+                        //     new_state = Arc::new(State::AwaitSecretKeyFromUser);
+
+                        // }
+                        State::AwaitingRoomIdFromServer => {
+                            tx.send("Server: Awaiting room ID from server...".to_string()).unwrap();
+                            new_state = Arc::new(State::AwaitMessages);
+                        }
+                        State::AwaitMessages => {
                             tx.send(format!("Server: {}", msg.encode_hex::<String>())).unwrap();
+                            new_state = Arc::new(State::AwaitMessages);
                         }
                         _ => {
                             break;
                         }
                     }
+
+                    state = new_state;
                 }
             }
         });
@@ -77,7 +116,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let current_pos = cursor_pos;
             execute!(stdout, MoveToColumn(0), Clear(ClearType::CurrentLine)).unwrap();
 
-            println!("> {}", message);
+            // println!("> {}", message);
+            println!("{message}");
 
             print_prompt(&current_input, current_pos);
             input = current_input;
