@@ -4,7 +4,7 @@ use crossterm::{
     execute,
     terminal::{Clear, ClearType, disable_raw_mode, enable_raw_mode},
 };
-use futures_util::StreamExt;
+use futures_util::{SinkExt, StreamExt};
 use hex::ToHex;
 use std::sync::mpsc;
 use std::thread;
@@ -37,7 +37,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (tx, rx) = mpsc::channel();
 
-    let thread_tx = tx.clone();
+    // let thread_tx = tx.clone();
     let request = WS_URL.into_client_request()?;
 
     let ws_connection = connect_async(request).await?;
@@ -54,7 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if let Ok(msg) = msg {
                     match msg {
                         Message::Binary(msg) => {
-                            thread_tx.send(format!("Server: {}", msg.encode_hex::<String>())).unwrap();
+                            tx.send(format!("Server: {}", msg.encode_hex::<String>())).unwrap();
                         }
                         _ => {
                             break;
@@ -112,7 +112,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     KeyCode::Enter => {
                         if !input.is_empty() {
                             execute!(stdout, MoveToNextLine(1), Clear(ClearType::CurrentLine), MoveToColumn(0)).unwrap();
-                            tx.clone().send(input.clone()).unwrap();
+                            ws_write.send(Message::Binary((input.clone()).into_bytes().into())).await.unwrap();
                             input.clear();
                             cursor_pos = 0;
                         }
