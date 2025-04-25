@@ -6,8 +6,7 @@ use crossterm::{
 };
 use futures_util::{SinkExt, StreamExt};
 use hex::ToHex;
-use sha2::Digest;
-use sha2::Sha256;
+use k256::sha2::{Digest, Sha256};
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -23,21 +22,15 @@ use tokio_tungstenite::{
     tungstenite::{client::IntoClientRequest, protocol::Message},
 };
 
-use k256::{
-    SecretKey,
-    ecdsa::{Signature, SigningKey, signature::Signer},
-    elliptic_curve::sec1::ToEncodedPoint,
-};
+use secp256k1::{self, PublicKey, Secp256k1, SecretKey};
 
 // const WS_URL: &str = "ws://sectalk.my.to/ws";
 
 const WS_URL: &str = "ws://127.0.0.1:3030/ws/";
 
 enum State {
-    Init,
-    AwaitSecretKeyFromUser,
-    AwaitPeerPubKeyFromUser,
-    AwaitingRoomIdFromServer,
+    AwaiutVerifyMsg,
+    AwaitRoomIdFromServer,
     AwaitMessages,
 }
 
@@ -52,9 +45,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut hasher = Sha256::new();
     hasher.update(secret);
 
-    let secret_key = SecretKey::from_bytes(&hasher.finalize().into()).unwrap();
+    let hash_result: [u8; 32] = hasher.finalize().try_into().unwrap();
 
-    let public_key: [u8; 33] = secret_key.public_key().to_encoded_point(true).as_bytes().try_into().unwrap();
+    let secp = Secp256k1::new();
+    let secret_key = SecretKey::from_byte_array(&hash_result).unwrap();
+    let public_key = PublicKey::from_secret_key(&secp, &secret_key).serialize();
 
     let public_key_b: [u8; 33] = hex::decode("0310c283aac7b35b4ae6fab201d36e8322c3408331149982e16013a5bcb917081c").unwrap().try_into().unwrap();
 
@@ -73,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut cursor_pos = 0;
 
     let should_exit = Arc::new(AtomicBool::new(false));
-    let mut state = Arc::new(State::Init);
+    let mut state = Arc::new(State::AwaiutVerifyMsg);
 
     let should_exit_ws = should_exit.clone();
 
@@ -90,7 +85,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ws_write = Arc::new(Mutex::new(ws_write));
     let thread_ws_write = ws_write.clone();
 
-
     let runtime = tokio::runtime::Runtime::new()?;
 
     thread::spawn(move || {
@@ -99,35 +93,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if let Ok(msg) = msg.map(|msg| msg.into_data()) {
                     let new_state: Arc<State>;
                     match *state {
-                        State::Init => {
+                        State::AwaiutVerifyMsg => {
                             tx.send(format!("verify_sig_msg = {}", msg.encode_hex::<String>())).unwrap();
 
-                            let signature: Signature = SigningKey::from(&secret_key).sign(&msg);
+                            // let message_hash = Sha256::digest(msg);
+                            let msg = secp256k1::Message::from_digest(msg.as_ref().try_into().unwrap());
 
-                            let ret_msg: Vec<u8> = public_key.iter().copied().chain(public_key_b.iter().copied()).chain(signature.to_bytes().iter().copied()).collect();
+                            let signature_bytes = secp.sign_ecdsa(&msg, &secret_key).serialize_compact();
+                            let signature = signature_bytes.as_ref();
 
-                            tx.send(format!("verified = {} ({})", ret_msg.encode_hex::<String>(),ret_msg.len())).unwrap();
+                            let ret_msg: Vec<u8> = public_key.iter().copied().chain(public_key_b.iter().copied()).chain(signature.iter().copied()).collect();
+
+                            tx.send(format!("verified = {} ({})", ret_msg.encode_hex::<String>(), ret_msg.len())).unwrap();
 
                             thread_ws_write.lock().unwrap().send(Message::Binary(ret_msg.into())).await.unwrap();
 
-                            new_state = Arc::new(State::AwaitingRoomIdFromServer);
+                            new_state = Arc::new(State::AwaitRoomIdFromServer);
                         }
-                        // State::AwaitSecretKeyFromUser => {
-                        //     tx.send("Server: Awaiting secret key from user...".to_string()).unwrap();
-                        //     new_state = Arc::new(State::AwaitSecretKeyFromUser);
-
-                        // }
-                        // State::AwaitPeerPubKeyFromUser => {
-                        //     tx.send("Server: Awaiting peer public key from user...".to_string()).unwrap();
-                        //     new_state = Arc::new(State::AwaitSecretKeyFromUser);
-
-                        // }
-                        State::AwaitingRoomIdFromServer => {
-                            tx.send("Server: Awaiting room ID from server...".to_string()).unwrap();
+                        State::AwaitRoomIdFromServer => {
+                            // tx.send("Server: Awaiting room ID from server...".to_string()).unwrap();
                             new_state = Arc::new(State::AwaitMessages);
                         }
                         State::AwaitMessages => {
-                            tx.send(format!("Server: {}", msg.encode_hex::<String>())).unwrap();
+                            // tx.send(format!("Server: {}", msg.encode_hex::<String>())).unwrap();
                             new_state = Arc::new(State::AwaitMessages);
                         }
                         _ => {

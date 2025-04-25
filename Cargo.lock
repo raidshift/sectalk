@@ -1701,7 +1701,7 @@ dependencies = [
  "hex",
  "k256",
  "reqwest",
- "sha2",
+ "secp256k1",
  "tokio",
  "tokio-tungstenite 0.26.2",
 ]
