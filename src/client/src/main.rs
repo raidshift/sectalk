@@ -6,6 +6,9 @@ use crossterm::{
 };
 use futures_util::{SinkExt, StreamExt};
 use hex::ToHex;
+use sha2::Digest;
+use sha2::Sha256;
+use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 use std::{
@@ -15,10 +18,15 @@ use std::{
         atomic::{AtomicBool, Ordering},
     },
 };
-use std::{os::macos::raw::stat, sync::mpsc};
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{client::IntoClientRequest, protocol::Message},
+};
+
+use k256::{
+    SecretKey,
+    ecdsa::{Signature, SigningKey, signature::Signer},
+    elliptic_curve::sec1::ToEncodedPoint,
 };
 
 // const WS_URL: &str = "ws://sectalk.my.to/ws";
@@ -35,8 +43,29 @@ enum State {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-
     println!("sectalk\nA peer-to-peer, end-to-end encrypted messaging protocol");
+
+    // **********+
+
+    let secret = b"a";
+
+    let mut hasher = Sha256::new();
+    hasher.update(secret);
+
+    let secret_key = SecretKey::from_bytes(&hasher.finalize().into()).unwrap();
+
+    let public_key: [u8; 33] = secret_key.public_key().to_encoded_point(true).as_bytes().try_into().unwrap();
+
+    println!("Your public key: {}", public_key.encode_hex::<String>());
+
+    // Create signing key
+    // let signing_key = SigningKey::from(&secret_key);
+
+    // Sign a message
+    let message = b"hello world";
+    let signature: Signature = SigningKey::from(&secret_key).sign(message);
+
+    // ***********
 
     enable_raw_mode().unwrap();
     let mut stdout = stdout();
@@ -51,7 +80,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (tx, rx) = mpsc::channel();
     // tx.send(format!("Let'sgo")).unwrap();
 
-
     // let thread_tx = tx.clone();
     let request = WS_URL.into_client_request()?;
 
@@ -62,8 +90,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // println!("WebSocket connected!");
 
     let runtime = tokio::runtime::Runtime::new()?;
-
-
 
     thread::spawn(move || {
         runtime.block_on(async {
