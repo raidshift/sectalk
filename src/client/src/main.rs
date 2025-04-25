@@ -14,7 +14,7 @@ use std::time::Duration;
 use std::{
     io::{Write, stdout},
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicBool, Ordering},
     },
 };
@@ -56,14 +56,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let public_key: [u8; 33] = secret_key.public_key().to_encoded_point(true).as_bytes().try_into().unwrap();
 
+    let public_key_b: [u8; 33] = hex::decode("0310c283aac7b35b4ae6fab201d36e8322c3408331149982e16013a5bcb917081c").unwrap().try_into().unwrap();
+
     println!("Your public key: {}", public_key.encode_hex::<String>());
 
     // Create signing key
     // let signing_key = SigningKey::from(&secret_key);
 
     // Sign a message
-    let message = b"hello world";
-    let signature: Signature = SigningKey::from(&secret_key).sign(message);
 
     // ***********
 
@@ -85,9 +85,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let ws_connection = connect_async(request).await?;
 
-    let (mut ws_write, mut ws_read) = ws_connection.0.split();
+    let (ws_write, mut ws_read) = ws_connection.0.split();
 
-    // println!("WebSocket connected!");
+    let ws_write = Arc::new(Mutex::new(ws_write));
+    let thread_ws_write = ws_write.clone();
+
 
     let runtime = tokio::runtime::Runtime::new()?;
 
@@ -99,6 +101,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     match *state {
                         State::Init => {
                             tx.send(format!("verify_sig_msg = {}", msg.encode_hex::<String>())).unwrap();
+
+                            let signature: Signature = SigningKey::from(&secret_key).sign(&msg);
+
+                            let ret_msg: Vec<u8> = public_key.iter().copied().chain(public_key_b.iter().copied()).chain(signature.to_bytes().iter().copied()).collect();
+
+                            tx.send(format!("verified = {} ({})", ret_msg.encode_hex::<String>(),ret_msg.len())).unwrap();
+
+                            thread_ws_write.lock().unwrap().send(Message::Binary(ret_msg.into())).await.unwrap();
+
                             new_state = Arc::new(State::AwaitingRoomIdFromServer);
                         }
                         // State::AwaitSecretKeyFromUser => {
@@ -178,7 +189,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     KeyCode::Enter => {
                         if !input.is_empty() {
                             execute!(stdout, MoveToNextLine(1), Clear(ClearType::CurrentLine), MoveToColumn(0)).unwrap();
-                            ws_write.send(Message::Binary((input.clone()).into_bytes().into())).await.unwrap();
+                            ws_write.lock().unwrap().send(Message::Binary((input.clone()).into_bytes().into())).await.unwrap();
                             input.clear();
                             cursor_pos = 0;
                         }
