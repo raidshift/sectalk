@@ -99,10 +99,6 @@ function App() {
       blob.arrayBuffer().then(buffer => {
         const bytes = new Uint8Array(buffer);
 
-        if (bytes.length === 1) {
-          socket.close();
-        }
-
         if (appState === AppState.AWAIT_SECRET_KEY_FROM_USER) {
           verifySigMsg = Uint8Array.from(bytes);
           setPlaceHolder("Enter your secret key");
@@ -125,6 +121,9 @@ function App() {
 
 
         } else if (appState === AppState.AWAIT_MESSAGES) {
+          if (bytes.length === 1) {
+            socket.close();
+          }
           const decoder = new TextDecoder('utf-8');
 
           const nonce = bytes.slice(0, sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);

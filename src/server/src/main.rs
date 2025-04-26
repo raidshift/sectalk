@@ -96,7 +96,7 @@ impl Rooms {
         session_id: &Uuid,
         peer: &Peer,
         tx: Arc<Mutex<SplitSink<WebSocket, Message>>>,
-    ) -> Arc<Mutex<Room>> {
+    ) -> (Arc<Mutex<Room>>,RoomKey) {
         let room_key = RoomKey::new(&pka, &pkb);
         let room = self
             .0
@@ -122,7 +122,7 @@ impl Rooms {
             debug!("{}: Added peer {:?} to room {:?}", session_id, peer, room_key);
         }
 
-        room
+        (room,room_key)
     }
 
     async fn release_room(&mut self, room: &Arc<Mutex<Room>>, session_id: &Uuid) {
@@ -234,17 +234,21 @@ async fn handle_session(ws: WebSocket) {
                     break;
                 }
 
+                let room_key:RoomKey;
+
                 {
+                    let claimed_room: Arc<Mutex<Room>>;
                     let mut rooms_guard = ROOMS.lock().await;
-                    room = Some(
+                    (claimed_room,room_key) = 
                         rooms_guard
                             .claim_room(&pka, &pkb, &session_id, this_peer.as_ref().unwrap(), tx.clone())
-                            .await,
-                    );
+                            .await;
+                        room = Some(claimed_room);
+
                 }
 
                 let mut tx_guard = tx.lock().await;
-                send(&mut tx_guard, &session_id, &[0x00]).await;
+                send(&mut tx_guard, &session_id, &room_key.0.to_be_bytes()).await;
             }
             Some(ref room) => {
                 if ws_message_bytes.len() != WS_MSG_LEN {
