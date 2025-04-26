@@ -11,7 +11,11 @@ use chacha20poly1305::{
 
 use secp256k1::{self, All, PublicKey, Scalar, Secp256k1};
 
-pub fn decrypt(shared_secret: &[u8; PUB_KEY_LEN], nonce: &[u8; NONCE_LEN], msg_enc: &[u8]) -> Result<Vec<u8>, Box<dyn Error>> {
+pub fn decrypt(
+    shared_secret: &[u8; PUB_KEY_LEN],
+    nonce: &[u8; NONCE_LEN],
+    msg_enc: &[u8],
+) -> Result<Vec<u8>, Box<dyn Error>> {
     XChaCha20Poly1305::new(Key::from_slice(shared_secret))
         .decrypt(XNonce::from_slice(nonce), msg_enc)
         .map_err(|e| e.to_string().into())

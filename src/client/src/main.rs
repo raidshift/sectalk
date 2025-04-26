@@ -135,15 +135,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             new_state = Arc::new(State::AwaitRoomIdFromServer);
                         }
                         State::AwaitRoomIdFromServer => {
-                            // tx.send("Server: Awaiting room ID from server...".to_string()).unwrap();
+                            tx.send(format!("Entered room {}", msg.encode_hex::<String>())).unwrap();
                             new_state = Arc::new(State::AwaitMessages);
                         }
                         State::AwaitMessages => {
                             // tx.send(format!("Server: {}", msg.encode_hex::<String>())).unwrap();
 
                             if msg.len() > NONCE_LEN {
-                                if let Ok(plain) = decrypt(&shared_secret, &msg[0..NONCE_LEN].try_into().unwrap(), &msg[NONCE_LEN..]) {
+                                if let Ok(plain) = decrypt(
+                                    &shared_secret,
+                                    &msg[0..NONCE_LEN].try_into().unwrap(),
+                                    &msg[NONCE_LEN..],
+                                ) {
                                     tx.send(String::from_utf8_lossy(&plain).to_string()).unwrap();
+                                } else {
+                                    tx.send(format!("Failed to decrypt message: {}", msg.encode_hex::<String>()))
+                                        .unwrap();
                                 }
                             }
 

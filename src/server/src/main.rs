@@ -115,11 +115,11 @@ impl Rooms {
             if let Some(peer_tx) = peer_tx {
                 let mut tx_guard = peer_tx.lock().await;
                 send(&mut tx_guard, session_id, &[0x00]).await;
-                debug!("{}: Kicked peer {:?} from room {:?}", session_id, peer, room_key);
+                debug!("{}: Kicked peer {:?} from room {:?}", session_id, peer, room_key.0);
             }
 
             *peer_tx = Some(tx);
-            debug!("{}: Added peer {:?} to room {:?}", session_id, peer, room_key);
+            debug!("{}: Added peer {:?} to room {:?}", session_id, peer, room_key.0);
         }
 
         (room,room_key)
