@@ -27,12 +27,11 @@ pub fn derive_shared_secret(
     secret_key: [u8; SEC_KEY_LEN],
     public_key: &[u8; PUB_KEY_LEN],
 ) -> Result<[u8; SEC_KEY_LEN], Box<dyn Error>> {
-
     let mut tmp = PublicKey::from_slice(public_key)
-    .map_err(|e| e.to_string())?
-    .mul_tweak(secp, &Scalar::from_be_bytes(secret_key).map_err(|e| e.to_string())?)
-    .map_err(|e| e.to_string())?
-    .serialize();
+        .map_err(|e| e.to_string())?
+        .mul_tweak(secp, &Scalar::from_be_bytes(secret_key).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())?
+        .serialize();
 
     let shared_secret = tmp[..SEC_KEY_LEN].try_into().unwrap();
 
