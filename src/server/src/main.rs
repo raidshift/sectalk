@@ -13,11 +13,11 @@ use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::time::timeout;
 use uuid::Uuid;
-use warp::ws::{Message, WebSocket};
 use warp::Filter;
+use warp::ws::{Message, WebSocket};
 
 const SERVER_ADDRESS: ([u8; 4], u16) = ([127, 0, 0, 1], 3030);
-const SESSION_TIMEOUT_SEC: u64 = 60;
+const SESSION_TIMEOUT_SEC: u64 = 5 * 60;
 const PUB_KEY_LEN: usize = 33;
 const SIG_LEN: usize = 64;
 const SIG_MSG_LEN: usize = 32;
@@ -96,7 +96,7 @@ impl Rooms {
         session_id: &Uuid,
         peer: &Peer,
         tx: Arc<Mutex<SplitSink<WebSocket, Message>>>,
-    ) -> (Arc<Mutex<Room>>,RoomKey) {
+    ) -> (Arc<Mutex<Room>>, RoomKey) {
         let room_key = RoomKey::new(&pka, &pkb);
         let room = self
             .0
@@ -122,7 +122,7 @@ impl Rooms {
             debug!("{}: Added peer {:?} to room {:?}", session_id, peer, room_key.0);
         }
 
-        (room,room_key)
+        (room, room_key)
     }
 
     async fn release_room(&mut self, room: &Arc<Mutex<Room>>, session_id: &Uuid) {
@@ -234,17 +234,15 @@ async fn handle_session(ws: WebSocket) {
                     break;
                 }
 
-                let room_key:RoomKey;
+                let room_key: RoomKey;
 
                 {
                     let claimed_room: Arc<Mutex<Room>>;
                     let mut rooms_guard = ROOMS.lock().await;
-                    (claimed_room,room_key) = 
-                        rooms_guard
-                            .claim_room(&pka, &pkb, &session_id, this_peer.as_ref().unwrap(), tx.clone())
-                            .await;
-                        room = Some(claimed_room);
-
+                    (claimed_room, room_key) = rooms_guard
+                        .claim_room(&pka, &pkb, &session_id, this_peer.as_ref().unwrap(), tx.clone())
+                        .await;
+                    room = Some(claimed_room);
                 }
 
                 let mut tx_guard = tx.lock().await;
