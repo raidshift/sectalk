@@ -7,6 +7,7 @@ use crossterm::{
 use futures_util::{SinkExt, StreamExt};
 use hex::ToHex;
 use k256::sha2::{Digest, Sha256};
+use sectalk::{NONCE_LEN, SEC_KEY_LEN, decrypt, derive_shared_secret};
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -21,6 +22,7 @@ use tokio_tungstenite::{
     connect_async,
     tungstenite::{client::IntoClientRequest, protocol::Message},
 };
+use zeroize::Zeroize;
 
 use secp256k1::{self, PublicKey, Secp256k1, SecretKey};
 
@@ -29,29 +31,38 @@ use secp256k1::{self, PublicKey, Secp256k1, SecretKey};
 const WS_URL: &str = "ws://127.0.0.1:3030/ws/";
 
 enum State {
-    AwaiutVerifyMsg,
+    AwaitVerifyMsg,
     AwaitRoomIdFromServer,
     AwaitMessages,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let secp = Secp256k1::new();
+
     println!("sectalk\nA peer-to-peer, end-to-end encrypted messaging protocol");
 
     // **********+
 
-    let secret = b"a";
+    let mut secret: [u8; 1] = *b"a";
 
     let mut hasher = Sha256::new();
-    hasher.update(secret);
+    hasher.update(&secret);
 
-    let hash_result: [u8; 32] = hasher.finalize().try_into().unwrap();
-
-    let secp = Secp256k1::new();
+    let mut hash_result: [u8; SEC_KEY_LEN] = hasher.finalize().try_into().unwrap();
     let secret_key = SecretKey::from_byte_array(&hash_result).unwrap();
-    let public_key = PublicKey::from_secret_key(&secp, &secret_key).serialize();
 
-    let public_key_b: [u8; 33] = hex::decode("0310c283aac7b35b4ae6fab201d36e8322c3408331149982e16013a5bcb917081c").unwrap().try_into().unwrap();
+    hash_result.zeroize();
+    secret.zeroize();
+
+    let public_key = PublicKey::from_secret_key(&secp, &secret_key).serialize();
+    let mut shared_secret =
+        derive_shared_secret(&secp, secret_key.secret_bytes(), &public_key).map_err(|e| e.to_string())?;
+
+    let public_key_b: [u8; 33] = hex::decode("0310c283aac7b35b4ae6fab201d36e8322c3408331149982e16013a5bcb917081c")
+        .unwrap()
+        .try_into()
+        .unwrap();
 
     println!("Your public key: {}", public_key.encode_hex::<String>());
 
@@ -68,7 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut cursor_pos = 0;
 
     let should_exit = Arc::new(AtomicBool::new(false));
-    let mut state = Arc::new(State::AwaiutVerifyMsg);
+    let mut state = Arc::new(State::AwaitVerifyMsg);
 
     let should_exit_ws = should_exit.clone();
 
@@ -93,20 +104,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if let Ok(msg) = msg.map(|msg| msg.into_data()) {
                     let new_state: Arc<State>;
                     match *state {
-                        State::AwaiutVerifyMsg => {
-                            tx.send(format!("verify_sig_msg = {}", msg.encode_hex::<String>())).unwrap();
+                        State::AwaitVerifyMsg => {
+                            tx.send(format!("verify_sig_msg = {}", msg.encode_hex::<String>()))
+                                .unwrap();
 
-                            // let message_hash = Sha256::digest(msg);
                             let msg = secp256k1::Message::from_digest(msg.as_ref().try_into().unwrap());
-
                             let signature_bytes = secp.sign_ecdsa(&msg, &secret_key).serialize_compact();
                             let signature = signature_bytes.as_ref();
+                            let ret_msg: Vec<u8> = public_key
+                                .iter()
+                                .copied()
+                                .chain(public_key_b.iter().copied())
+                                .chain(signature.iter().copied())
+                                .collect();
 
-                            let ret_msg: Vec<u8> = public_key.iter().copied().chain(public_key_b.iter().copied()).chain(signature.iter().copied()).collect();
+                            tx.send(format!(
+                                "verified = {} ({})",
+                                ret_msg.encode_hex::<String>(),
+                                ret_msg.len()
+                            ))
+                            .unwrap();
 
-                            tx.send(format!("verified = {} ({})", ret_msg.encode_hex::<String>(), ret_msg.len())).unwrap();
-
-                            thread_ws_write.lock().unwrap().send(Message::Binary(ret_msg.into())).await.unwrap();
+                            thread_ws_write
+                                .lock()
+                                .unwrap()
+                                .send(Message::Binary(ret_msg.into()))
+                                .await
+                                .unwrap();
 
                             new_state = Arc::new(State::AwaitRoomIdFromServer);
                         }
@@ -116,10 +140,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                         State::AwaitMessages => {
                             // tx.send(format!("Server: {}", msg.encode_hex::<String>())).unwrap();
+
+                            if msg.len() > NONCE_LEN {
+                                if let Ok(plain) = decrypt(&shared_secret, &msg[0..NONCE_LEN].try_into().unwrap(), &msg[NONCE_LEN..]) {
+                                    tx.send(String::from_utf8_lossy(&plain).to_string()).unwrap();
+                                }
+                            }
+
                             new_state = Arc::new(State::AwaitMessages);
-                        }
-                        _ => {
-                            break;
                         }
                     }
 
@@ -176,8 +204,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                     KeyCode::Enter => {
                         if !input.is_empty() {
-                            execute!(stdout, MoveToNextLine(1), Clear(ClearType::CurrentLine), MoveToColumn(0)).unwrap();
-                            ws_write.lock().unwrap().send(Message::Binary((input.clone()).into_bytes().into())).await.unwrap();
+                            execute!(
+                                stdout,
+                                MoveToNextLine(1),
+                                Clear(ClearType::CurrentLine),
+                                MoveToColumn(0)
+                            )
+                            .unwrap();
+                            ws_write
+                                .lock()
+                                .unwrap()
+                                .send(Message::Binary((input.clone()).into_bytes().into()))
+                                .await
+                                .unwrap();
                             input.clear();
                             cursor_pos = 0;
                         }
@@ -193,6 +232,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     disable_raw_mode().unwrap();
+
+    shared_secret.zeroize();
 
     Ok(())
 }
