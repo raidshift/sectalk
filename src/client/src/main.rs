@@ -56,22 +56,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     secret.zeroize();
 
     let public_key = PublicKey::from_secret_key(&secp, &secret_key).serialize();
-    let mut shared_secret =
-        derive_shared_secret(&secp, secret_key.secret_bytes(), &public_key).map_err(|e| e.to_string())?;
-
+  
     let public_key_b: [u8; 33] = hex::decode("0310c283aac7b35b4ae6fab201d36e8322c3408331149982e16013a5bcb917081c")
         .unwrap()
         .try_into()
         .unwrap();
 
+        let mut shared_secret =
+        derive_shared_secret(&secp, secret_key.secret_bytes(), &public_key_b).map_err(|e| e.to_string())?;
+
     println!("Your public key: {}", public_key.encode_hex::<String>());
-
-    // Create signing key
-    // let signing_key = SigningKey::from(&secret_key);
-
-    // Sign a message
-
-    // ***********
+    println!("Peer public key: {}", public_key_b.encode_hex::<String>());
+    println!("Shared secret: {}", shared_secret.encode_hex::<String>());
 
     enable_raw_mode().unwrap();
     let mut stdout = stdout();

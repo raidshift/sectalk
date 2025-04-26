@@ -33,7 +33,7 @@ pub fn derive_shared_secret(
         .map_err(|e| e.to_string())?
         .serialize();
 
-    let shared_secret = tmp[..SEC_KEY_LEN].try_into().unwrap();
+    let shared_secret = tmp[1..SEC_KEY_LEN+1].try_into().unwrap();
 
     tmp.zeroize();
 
