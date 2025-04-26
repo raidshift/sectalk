@@ -1,4 +1,5 @@
 use std::error::Error;
+use zeroize::{self, Zeroize};
 
 pub const NONCE_LEN: usize = 24;
 pub const SEC_KEY_LEN: usize = 32;
@@ -12,7 +13,7 @@ use chacha20poly1305::{
 use secp256k1::{self, All, PublicKey, Scalar, Secp256k1};
 
 pub fn decrypt(
-    shared_secret: &[u8; PUB_KEY_LEN],
+    shared_secret: &[u8; SEC_KEY_LEN],
     nonce: &[u8; NONCE_LEN],
     msg_enc: &[u8],
 ) -> Result<Vec<u8>, Box<dyn Error>> {
@@ -25,10 +26,17 @@ pub fn derive_shared_secret(
     secp: &Secp256k1<All>,
     secret_key: [u8; SEC_KEY_LEN],
     public_key: &[u8; PUB_KEY_LEN],
-) -> Result<[u8; PUB_KEY_LEN], Box<dyn Error>> {
-    Ok(PublicKey::from_slice(public_key)
-        .map_err(|e| e.to_string())?
-        .mul_tweak(secp, &Scalar::from_be_bytes(secret_key).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())?
-        .serialize())
+) -> Result<[u8; SEC_KEY_LEN], Box<dyn Error>> {
+
+    let mut tmp = PublicKey::from_slice(public_key)
+    .map_err(|e| e.to_string())?
+    .mul_tweak(secp, &Scalar::from_be_bytes(secret_key).map_err(|e| e.to_string())?)
+    .map_err(|e| e.to_string())?
+    .serialize();
+
+    let shared_secret = tmp[..SEC_KEY_LEN].try_into().unwrap();
+
+    tmp.zeroize();
+
+    Ok(shared_secret)
 }
