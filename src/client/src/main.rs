@@ -8,6 +8,7 @@ use futures_util::{SinkExt, StreamExt};
 use hex::ToHex;
 use k256::sha2::{Digest, Sha256};
 use sectalk::{NONCE_LEN, SEC_KEY_LEN, decrypt, derive_shared_secret};
+use core::hash;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -50,12 +51,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     hasher.update(&secret);
 
     let mut hash_result: [u8; SEC_KEY_LEN] = hasher.finalize().try_into().unwrap();
-    let secret_key = SecretKey::from_byte_array(&hash_result).unwrap();
 
     hash_result.zeroize();
     secret.zeroize();
 
-    let public_key = PublicKey::from_secret_key(&secp, &secret_key).serialize();
+
+    let public_key = PublicKey::from_slice(&hash_result).unwrap().serialize();
+
+    // let public_key = PublicKey::from_secret_key(&secp, &secret_key).serialize();
   
     let public_key_b: [u8; 33] = hex::decode("0310c283aac7b35b4ae6fab201d36e8322c3408331149982e16013a5bcb917081c")
         .unwrap()
@@ -63,7 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
 
         let mut shared_secret =
-        derive_shared_secret(&secp, secret_key.secret_bytes(), &public_key_b).map_err(|e| e.to_string())?;
+        derive_shared_secret(&secp, &hash_result, &public_key_b).map_err(|e| e.to_string())?;
 
     println!("Your public key: {}", public_key.encode_hex::<String>());
     println!("Peer public key: {}", public_key_b.encode_hex::<String>());
@@ -237,6 +240,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     disable_raw_mode().unwrap();
 
     shared_secret.zeroize();
+
+    secret.zeroize();
 
     Ok(())
 }

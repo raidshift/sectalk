@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{error::Error, mem, ptr, sync::atomic};
 use zeroize::{self, Zeroize};
 
 pub const NONCE_LEN: usize = 24;
@@ -12,30 +12,56 @@ use chacha20poly1305::{
 
 use secp256k1::{self, All, PublicKey, Scalar, Secp256k1};
 
+pub fn encrypt(
+    shared_secret: &[u8; SEC_KEY_LEN],
+    nonce: &[u8; NONCE_LEN],
+    plaintext: &[u8],
+) -> Result<Vec<u8>, Box<dyn Error>> {
+    XChaCha20Poly1305::new(Key::from_slice(shared_secret))
+        .encrypt(XNonce::from_slice(nonce), plaintext)
+        .map_err(|e| e.to_string().into())
+}
+
 pub fn decrypt(
     shared_secret: &[u8; SEC_KEY_LEN],
     nonce: &[u8; NONCE_LEN],
-    msg_enc: &[u8],
+    ciphertext: &[u8],
 ) -> Result<Vec<u8>, Box<dyn Error>> {
     XChaCha20Poly1305::new(Key::from_slice(shared_secret))
-        .decrypt(XNonce::from_slice(nonce), msg_enc)
+        .decrypt(XNonce::from_slice(nonce), ciphertext)
         .map_err(|e| e.to_string().into())
 }
 
 pub fn derive_shared_secret(
     secp: &Secp256k1<All>,
-    secret_key: [u8; SEC_KEY_LEN],
+    secret_key: &[u8; SEC_KEY_LEN],
     public_key: &[u8; PUB_KEY_LEN],
 ) -> Result<[u8; SEC_KEY_LEN], Box<dyn Error>> {
+    let mut scalar = Scalar::from_be_bytes(*secret_key).map_err(|e| e.to_string())?;
+
     let mut tmp = PublicKey::from_slice(public_key)
         .map_err(|e| e.to_string())?
-        .mul_tweak(secp, &Scalar::from_be_bytes(secret_key).map_err(|e| e.to_string())?)
+        .mul_tweak(secp, &scalar)
         .map_err(|e| e.to_string())?
         .serialize();
 
-    let shared_secret = tmp[1..SEC_KEY_LEN+1].try_into().unwrap();
+    let shared_secret = tmp[1..SEC_KEY_LEN + 1].try_into().unwrap();
 
     tmp.zeroize();
+
+
+    atomic::compiler_fence(atomic::Ordering::SeqCst);
+    
+    let ptr = &mut scalar as *mut _ as *mut u8;
+
+    unsafe {
+        for i in 0..mem::size_of_val(&scalar) {
+            ptr::write_volatile(ptr.add(i), 0);
+        }
+    }
+
+    atomic::compiler_fence(atomic::Ordering::SeqCst);
+
 
     Ok(shared_secret)
 }
