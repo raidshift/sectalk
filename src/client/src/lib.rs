@@ -1,5 +1,4 @@
 use std::{error::Error, mem, ptr, sync::atomic};
-use zeroize::{self, Zeroize};
 
 pub const NONCE_LEN: usize = 24;
 pub const SEC_KEY_LEN: usize = 32;
@@ -10,7 +9,8 @@ use chacha20poly1305::{
     aead::{Aead, KeyInit},
 };
 
-use secp256k1::{self, All, PublicKey, Scalar, Secp256k1};
+use secp256k1::{self, All, PublicKey, Scalar, Secp256k1, SecretKey};
+use zeroize::{Zeroize, Zeroizing};
 
 pub fn encrypt(
     shared_secret: &[u8; SEC_KEY_LEN],
@@ -37,31 +37,55 @@ pub fn derive_shared_secret(
     secret_key: &[u8; SEC_KEY_LEN],
     public_key: &[u8; PUB_KEY_LEN],
 ) -> Result<[u8; SEC_KEY_LEN], Box<dyn Error>> {
-    let mut scalar = Scalar::from_be_bytes(*secret_key).map_err(|e| e.to_string())?;
+    let scalar = Zeroizing::new(ZeroizableScalar(
+        Scalar::from_be_bytes(*secret_key).map_err(|e| e.to_string())?,
+    ));
 
-    let mut tmp = PublicKey::from_slice(public_key)
-        .map_err(|e| e.to_string())?
-        .mul_tweak(secp, &scalar)
-        .map_err(|e| e.to_string())?
-        .serialize();
+    let tmp = Zeroizing::new(
+        PublicKey::from_slice(public_key)
+            .map_err(|e| e.to_string())?
+            .mul_tweak(secp, &scalar.0)
+            .map_err(|e| e.to_string())?
+            .serialize(),
+    );
 
     let shared_secret = tmp[1..SEC_KEY_LEN + 1].try_into().unwrap();
 
-    tmp.zeroize();
+    Ok(shared_secret)
+}
 
+struct ZeroizableSecretKey(SecretKey);
+struct ZeroizableScalar(Scalar);
 
+impl Zeroize for ZeroizableSecretKey {
+    fn zeroize(&mut self) {
+        zeroize(&mut self.0);
+    }
+}
+
+impl Zeroize for ZeroizableScalar {
+    fn zeroize(&mut self) {
+        zeroize(&mut self.0);
+    }
+}
+
+fn zeroize<T>(z: &mut T) {
     atomic::compiler_fence(atomic::Ordering::SeqCst);
-    
-    let ptr = &mut scalar as *mut _ as *mut u8;
+
+    let ptr = z as *mut _ as *mut u8;
+
+    println!("bytes before zeroizing: {:?}", unsafe {
+        std::slice::from_raw_parts(ptr, mem::size_of_val(z))
+    });
 
     unsafe {
-        for i in 0..mem::size_of_val(&scalar) {
+        for i in 0..mem::size_of_val(z) {
             ptr::write_volatile(ptr.add(i), 0);
         }
     }
-
     atomic::compiler_fence(atomic::Ordering::SeqCst);
-
-
-    Ok(shared_secret)
+    println!("zeroized {} bytes", mem::size_of_val(z));
+    println!("bytes after zeroizing: {:?}", unsafe {
+        std::slice::from_raw_parts(ptr, mem::size_of_val(z))
+    });
 }

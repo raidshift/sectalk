@@ -10,8 +10,6 @@ tokio = { version = "1.44.2", features = ["macros", "rt-multi-thread"] }
 futures-util = "0.3.31"
 tokio-tungstenite = "0.26.2"
 hex = "0.4.3"
-secp256k1 ="0.30.0"
-k256 = "0.13.4"
-chacha20poly1305 = "0.10.1"
+secp256k1 = "0.31.0"
 zeroize = "1.8.1"
-
+chacha20poly1305 = "0.10.1"

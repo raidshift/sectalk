@@ -8,7 +8,6 @@ use futures_util::{SinkExt, StreamExt};
 use hex::ToHex;
 use k256::sha2::{Digest, Sha256};
 use sectalk::{NONCE_LEN, SEC_KEY_LEN, decrypt, derive_shared_secret};
-use core::hash;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -23,9 +22,10 @@ use tokio_tungstenite::{
     connect_async,
     tungstenite::{client::IntoClientRequest, protocol::Message},
 };
-use zeroize::Zeroize;
 
 use secp256k1::{self, PublicKey, Secp256k1, SecretKey};
+
+use secret::Secret;
 
 // const WS_URL: &str = "ws://sectalk.my.to/ws";
 
@@ -45,32 +45,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // **********+
 
-    let mut secret: [u8; 1] = *b"a";
+    let secret = Secret::new(b"Stri!!".to_owned());
 
     let mut hasher = Sha256::new();
-    hasher.update(&secret);
+    hasher.update(secret.expose());
 
-    let mut hash_result: [u8; SEC_KEY_LEN] = hasher.finalize().try_into().unwrap();
+    let hash_result = Secret::new(<[u8; SEC_KEY_LEN]>::from(hasher.finalize()));
+    println!("dropping secret");
+    drop(secret);
+    println!("dropped secret");
 
-    hash_result.zeroize();
-    secret.zeroize();
+    let secret_key = Secret::new(SecretKey::from_slice(hash_result.expose()).unwrap());
+    let public_key = PublicKey::from_secret_key(&secp, secret_key.expose()).serialize();
 
-
-    let public_key = PublicKey::from_slice(&hash_result).unwrap().serialize();
-
-    // let public_key = PublicKey::from_secret_key(&secp, &secret_key).serialize();
-  
     let public_key_b: [u8; 33] = hex::decode("0310c283aac7b35b4ae6fab201d36e8322c3408331149982e16013a5bcb917081c")
         .unwrap()
         .try_into()
         .unwrap();
 
-        let mut shared_secret =
-        derive_shared_secret(&secp, &hash_result, &public_key_b).map_err(|e| e.to_string())?;
+    let shared_secret =
+        Secret::new(derive_shared_secret(&secp, hash_result.expose(), &public_key_b).map_err(|e| e.to_string())?);
+
+    drop(hash_result);
 
     println!("Your public key: {}", public_key.encode_hex::<String>());
     println!("Peer public key: {}", public_key_b.encode_hex::<String>());
-    println!("Shared secret: {}", shared_secret.encode_hex::<String>());
+    println!("Shared secret: {}", shared_secret.expose().encode_hex::<String>());
 
     enable_raw_mode().unwrap();
     let mut stdout = stdout();
@@ -108,7 +108,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 .unwrap();
 
                             let msg = secp256k1::Message::from_digest(msg.as_ref().try_into().unwrap());
-                            let signature_bytes = secp.sign_ecdsa(&msg, &secret_key).serialize_compact();
+                            let signature_bytes = secp.sign_ecdsa(&msg, &secret_key.expose()).serialize_compact();
                             let signature = signature_bytes.as_ref();
                             let ret_msg: Vec<u8> = public_key
                                 .iter()
@@ -142,7 +142,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                             if msg.len() > NONCE_LEN {
                                 if let Ok(plain) = decrypt(
-                                    &shared_secret,
+                                    &shared_secret.expose(),
                                     &msg[0..NONCE_LEN].try_into().unwrap(),
                                     &msg[NONCE_LEN..],
                                 ) {
@@ -238,10 +238,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     disable_raw_mode().unwrap();
-
-    shared_secret.zeroize();
-
-    secret.zeroize();
 
     Ok(())
 }
