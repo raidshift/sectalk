@@ -41,23 +41,31 @@ pub fn derive_shared_secret(
         Scalar::from_be_bytes(*secret_key).map_err(|e| e.to_string())?,
     ));
 
-    let tmp = Zeroizing::new(
+    let shared_secret_public_key = Zeroizing::new(ZeroizablePublicKey(
         PublicKey::from_slice(public_key)
             .map_err(|e| e.to_string())?
             .mul_tweak(secp, &scalar.0)
-            .map_err(|e| e.to_string())?
-            .serialize(),
-    );
+            .map_err(|e| e.to_string())?,
+    ));
 
-    let shared_secret = tmp[1..SEC_KEY_LEN + 1].try_into().unwrap();
+    let shared_secret_public_key_serialized = Zeroizing::new(shared_secret_public_key.0.serialize());
 
-    Ok(shared_secret)
+    Ok(shared_secret_public_key_serialized[1..SEC_KEY_LEN + 1]
+        .try_into()
+        .unwrap())
 }
 
 struct ZeroizableSecretKey(SecretKey);
+struct ZeroizablePublicKey(PublicKey);
 struct ZeroizableScalar(Scalar);
 
 impl Zeroize for ZeroizableSecretKey {
+    fn zeroize(&mut self) {
+        zeroize(&mut self.0);
+    }
+}
+
+impl Zeroize for ZeroizablePublicKey {
     fn zeroize(&mut self) {
         zeroize(&mut self.0);
     }
