@@ -42,18 +42,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("sectalk\nA peer-to-peer, end-to-end encrypted messaging protocol");
 
-    // **********+
-
     let secret = Zeroizing::new(String::from("a").into_bytes()); //unsafe - read via prompt
 
     let digest = Zeroizing::new(ZeroizableHash(Hash::hash(&*secret)));
 
     let hash: &[u8; SEC_KEY_LEN] = digest.0.as_byte_array();
 
-    // let secret_key = Zeroizing::new(ZeroizableSecretKey(SecretKey::from_slice(hash).unwrap()));
-
     let secret_key = Zeroizing::new(ZeroizableSecretKey(SecretKey::from_byte_array(*hash).unwrap()));
-
 
     let public_key = PublicKey::from_secret_key(&secp, &secret_key.0).serialize();
 
@@ -79,9 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let should_exit_ws = should_exit.clone();
 
     let (tx, rx) = mpsc::channel();
-    // tx.send(format!("Let'sgo")).unwrap();
 
-    // let thread_tx = tx.clone();
     let request = WS_URL.into_client_request()?;
 
     let ws_connection = connect_async(request).await?;
