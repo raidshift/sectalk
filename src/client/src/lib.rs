@@ -9,8 +9,59 @@ use chacha20poly1305::{
     aead::{Aead, KeyInit},
 };
 
+use secp256k1::hashes::sha256::Hash;
 use secp256k1::{self, All, PublicKey, Scalar, Secp256k1, SecretKey};
 use zeroize::{Zeroize, Zeroizing};
+
+pub struct ZeroizableSecretKey(pub SecretKey);
+pub struct ZeroizableHash(pub Hash);
+struct ZeroizablePublicKey(PublicKey);
+struct ZeroizableScalar(Scalar);
+
+impl Zeroize for ZeroizableSecretKey {
+    fn zeroize(&mut self) {
+        zeroize(&mut self.0);
+    }
+}
+
+impl Zeroize for ZeroizablePublicKey {
+    fn zeroize(&mut self) {
+        zeroize(&mut self.0);
+    }
+}
+
+impl Zeroize for ZeroizableScalar {
+    fn zeroize(&mut self) {
+        zeroize(&mut self.0);
+    }
+}
+
+impl Zeroize for ZeroizableHash {
+    fn zeroize(&mut self) {
+        zeroize(&mut self.0);
+    }
+}
+
+pub fn zeroize<T>(z: &mut T) {
+    atomic::compiler_fence(atomic::Ordering::SeqCst);
+
+    let ptr = z as *mut _ as *mut u8;
+
+    println!("bytes before zeroizing: {:?}", unsafe {
+        std::slice::from_raw_parts(ptr, mem::size_of_val(z))
+    });
+
+    unsafe {
+        for i in 0..mem::size_of_val(z) {
+            ptr::write_volatile(ptr.add(i), 0);
+        }
+    }
+    atomic::compiler_fence(atomic::Ordering::SeqCst);
+    println!("zeroized {} bytes", mem::size_of_val(z));
+    println!("bytes after zeroizing: {:?}", unsafe {
+        std::slice::from_raw_parts(ptr, mem::size_of_val(z))
+    });
+}
 
 pub fn encrypt(
     shared_secret: &[u8; SEC_KEY_LEN],
@@ -53,47 +104,4 @@ pub fn derive_shared_secret(
     Ok(shared_secret_public_key_serialized[1..SEC_KEY_LEN + 1]
         .try_into()
         .unwrap())
-}
-
-struct ZeroizableSecretKey(SecretKey);
-struct ZeroizablePublicKey(PublicKey);
-struct ZeroizableScalar(Scalar);
-
-impl Zeroize for ZeroizableSecretKey {
-    fn zeroize(&mut self) {
-        zeroize(&mut self.0);
-    }
-}
-
-impl Zeroize for ZeroizablePublicKey {
-    fn zeroize(&mut self) {
-        zeroize(&mut self.0);
-    }
-}
-
-impl Zeroize for ZeroizableScalar {
-    fn zeroize(&mut self) {
-        zeroize(&mut self.0);
-    }
-}
-
-fn zeroize<T>(z: &mut T) {
-    atomic::compiler_fence(atomic::Ordering::SeqCst);
-
-    let ptr = z as *mut _ as *mut u8;
-
-    println!("bytes before zeroizing: {:?}", unsafe {
-        std::slice::from_raw_parts(ptr, mem::size_of_val(z))
-    });
-
-    unsafe {
-        for i in 0..mem::size_of_val(z) {
-            ptr::write_volatile(ptr.add(i), 0);
-        }
-    }
-    atomic::compiler_fence(atomic::Ordering::SeqCst);
-    println!("zeroized {} bytes", mem::size_of_val(z));
-    println!("bytes after zeroizing: {:?}", unsafe {
-        std::slice::from_raw_parts(ptr, mem::size_of_val(z))
-    });
 }

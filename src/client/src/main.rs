@@ -6,8 +6,7 @@ use crossterm::{
 };
 use futures_util::{SinkExt, StreamExt};
 use hex::ToHex;
-use k256::sha2::{Digest, Sha256};
-use sectalk::{NONCE_LEN, SEC_KEY_LEN, decrypt, derive_shared_secret};
+use sectalk::{decrypt, derive_shared_secret, ZeroizableHash, ZeroizableSecretKey, NONCE_LEN, SEC_KEY_LEN};
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -22,13 +21,13 @@ use tokio_tungstenite::{
     connect_async,
     tungstenite::{client::IntoClientRequest, protocol::Message},
 };
+use zeroize::Zeroizing;
 
-use secp256k1::{self, PublicKey, Secp256k1, SecretKey};
-
-use secret::Secret;
+use secp256k1::SecretKey;
+use secp256k1::hashes::Hash;
+use secp256k1::{self, PublicKey, Secp256k1};
 
 // const WS_URL: &str = "ws://sectalk.my.to/ws";
-
 const WS_URL: &str = "ws://127.0.0.1:3030/ws/";
 
 enum State {
@@ -45,18 +44,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // **********+
 
-    let secret = Secret::new(b"Stri!!".to_owned());
 
-    let mut hasher = Sha256::new();
-    hasher.update(secret.expose());
+    let secret = Zeroizing::new(String::from("a").into_bytes()); //unsafe because of copying bytes?
 
-    let hash_result = Secret::new(<[u8; SEC_KEY_LEN]>::from(hasher.finalize()));
+    let digest = Zeroizing::new(ZeroizableHash(Hash::hash(&*secret)));
+
+    let hash: &[u8; SEC_KEY_LEN] = digest.0.as_byte_array();
+
+    // let hasher = Sha256::new();
+    // hasher.update(secret);
+
+    // let hash_result = Zeroizing::new(<[u8; SEC_KEY_LEN]>::from(digest));
     println!("dropping secret");
     drop(secret);
     println!("dropped secret");
 
-    let secret_key = Secret::new(SecretKey::from_slice(hash_result.expose()).unwrap());
-    let public_key = PublicKey::from_secret_key(&secp, secret_key.expose()).serialize();
+    let secret_key = Zeroizing::new(ZeroizableSecretKey(SecretKey::from_slice(hash).unwrap()));
+    let public_key = PublicKey::from_secret_key(&secp, &secret_key.0).serialize();
 
     let public_key_b: [u8; 33] = hex::decode("0310c283aac7b35b4ae6fab201d36e8322c3408331149982e16013a5bcb917081c")
         .unwrap()
@@ -64,9 +68,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
 
     let shared_secret =
-        Secret::new(derive_shared_secret(&secp, hash_result.expose(), &public_key_b).map_err(|e| e.to_string())?);
+        Secret::new(derive_shared_secret(&secp, hash.expose(), &public_key_b).map_err(|e| e.to_string())?);
 
-    drop(hash_result);
+    drop(hash);
 
     println!("Your public key: {}", public_key.encode_hex::<String>());
     println!("Peer public key: {}", public_key_b.encode_hex::<String>());
