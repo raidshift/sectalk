@@ -20,24 +20,28 @@ struct ZeroizableScalar(Scalar);
 
 impl Zeroize for ZeroizableSecretKey {
     fn zeroize(&mut self) {
+        println!("*** zeroizing secret key ***");
         zeroize(&mut self.0);
     }
 }
 
 impl Zeroize for ZeroizablePublicKey {
     fn zeroize(&mut self) {
+        println!("*** zeroizing public key ***");
         zeroize(&mut self.0);
     }
 }
 
 impl Zeroize for ZeroizableScalar {
     fn zeroize(&mut self) {
+        println!("*** zeroizing scalar ***");
         zeroize(&mut self.0);
     }
 }
 
 impl Zeroize for ZeroizableHash {
     fn zeroize(&mut self) {
+        println!("*** zeroizing hash ***");
         zeroize(&mut self.0);
     }
 }
@@ -47,9 +51,9 @@ pub fn zeroize<T>(z: &mut T) {
 
     let ptr = z as *mut _ as *mut u8;
 
-    println!("bytes before zeroizing: {:?}", unsafe {
-        std::slice::from_raw_parts(ptr, mem::size_of_val(z))
-    });
+    // println!("bytes before zeroizing: {:?}", unsafe {
+    //     std::slice::from_raw_parts(ptr, mem::size_of_val(z))
+    // });
 
     unsafe {
         for i in 0..mem::size_of_val(z) {
@@ -57,10 +61,10 @@ pub fn zeroize<T>(z: &mut T) {
         }
     }
     atomic::compiler_fence(atomic::Ordering::SeqCst);
-    println!("zeroized {} bytes", mem::size_of_val(z));
-    println!("bytes after zeroizing: {:?}", unsafe {
-        std::slice::from_raw_parts(ptr, mem::size_of_val(z))
-    });
+    // println!("zeroized {} bytes", mem::size_of_val(z));
+    // println!("bytes after zeroizing: {:?}", unsafe {
+    //     std::slice::from_raw_parts(ptr, mem::size_of_val(z))
+    // });
 }
 
 pub fn encrypt(

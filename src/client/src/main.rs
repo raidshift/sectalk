@@ -6,7 +6,7 @@ use crossterm::{
 };
 use futures_util::{SinkExt, StreamExt};
 use hex::ToHex;
-use sectalk::{decrypt, derive_shared_secret, ZeroizableHash, ZeroizableSecretKey, NONCE_LEN, SEC_KEY_LEN};
+use sectalk::{NONCE_LEN, SEC_KEY_LEN, ZeroizableHash, ZeroizableSecretKey, decrypt, derive_shared_secret};
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -44,20 +44,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // **********+
 
-
-    let secret = Zeroizing::new(String::from("a").into_bytes()); //unsafe because of copying bytes?
+    let secret = Zeroizing::new(String::from("a").into_bytes()); //unsafe - read via prompt
 
     let digest = Zeroizing::new(ZeroizableHash(Hash::hash(&*secret)));
 
     let hash: &[u8; SEC_KEY_LEN] = digest.0.as_byte_array();
-
-    // let hasher = Sha256::new();
-    // hasher.update(secret);
-
-    // let hash_result = Zeroizing::new(<[u8; SEC_KEY_LEN]>::from(digest));
-    println!("dropping secret");
-    drop(secret);
-    println!("dropped secret");
 
     let secret_key = Zeroizing::new(ZeroizableSecretKey(SecretKey::from_slice(hash).unwrap()));
     let public_key = PublicKey::from_secret_key(&secp, &secret_key.0).serialize();
@@ -67,14 +58,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .try_into()
         .unwrap();
 
-    let shared_secret =
-        Secret::new(derive_shared_secret(&secp, hash.expose(), &public_key_b).map_err(|e| e.to_string())?);
-
-    drop(hash);
+    let shared_secret = Zeroizing::new(derive_shared_secret(&secp, hash, &public_key_b).map_err(|e| e.to_string())?);
 
     println!("Your public key: {}", public_key.encode_hex::<String>());
     println!("Peer public key: {}", public_key_b.encode_hex::<String>());
-    println!("Shared secret: {}", shared_secret.expose().encode_hex::<String>());
+    println!("Shared secret: {}", shared_secret.encode_hex::<String>());
 
     enable_raw_mode().unwrap();
     let mut stdout = stdout();
@@ -112,7 +100,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 .unwrap();
 
                             let msg = secp256k1::Message::from_digest(msg.as_ref().try_into().unwrap());
-                            let signature_bytes = secp.sign_ecdsa(&msg, &secret_key.expose()).serialize_compact();
+                            let signature_bytes = secp.sign_ecdsa(msg, &secret_key.0).serialize_compact();
                             let signature = signature_bytes.as_ref();
                             let ret_msg: Vec<u8> = public_key
                                 .iter()
@@ -146,7 +134,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                             if msg.len() > NONCE_LEN {
                                 if let Ok(plain) = decrypt(
-                                    &shared_secret.expose(),
+                                    &shared_secret,
                                     &msg[0..NONCE_LEN].try_into().unwrap(),
                                     &msg[NONCE_LEN..],
                                 ) {
