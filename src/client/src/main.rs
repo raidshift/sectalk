@@ -44,11 +44,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let secret = Zeroizing::new(String::from("a").into_bytes()); //unsafe - read via prompt
 
-    let digest = Zeroizing::new(ZeroizableHash(Hash::hash(&*secret)));
+    let hash = Zeroizing::new(ZeroizableHash(Hash::hash(&*secret)));
 
-    let hash: &[u8; SEC_KEY_LEN] = digest.0.as_byte_array();
-
-    let secret_key = Zeroizing::new(ZeroizableSecretKey(SecretKey::from_byte_array(*hash).unwrap()));
+    let secret_key = Zeroizing::new(ZeroizableSecretKey(
+        SecretKey::from_byte_array(*hash.0.as_byte_array()).unwrap(),
+    )); // there is no Drop !!
 
     let public_key = PublicKey::from_secret_key(&secp, &secret_key.0).serialize();
 
@@ -57,7 +57,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .try_into()
         .unwrap();
 
-    let shared_secret = Zeroizing::new(derive_shared_secret(&secp, hash, &public_key_b).map_err(|e| e.to_string())?);
+    let shared_secret =
+        Zeroizing::new(derive_shared_secret(&secp, hash.0.as_byte_array(), &public_key_b).map_err(|e| e.to_string())?);
 
     println!("Your public key: {}", public_key.encode_hex::<String>());
     println!("Peer public key: {}", public_key_b.encode_hex::<String>());
@@ -135,7 +136,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     &msg[0..NONCE_LEN].try_into().unwrap(),
                                     &msg[NONCE_LEN..],
                                 ) {
-                                    tx.send(String::from_utf8_lossy(&plain).to_string()).unwrap();
+                                    let prefix = match plain[0] {
+                                        b'A' => ">",
+                                        b'B' => "<",
+                                        _ => "?",
+                                    };
+                                    tx.send(format!(
+                                        "{} {}",
+                                        prefix,
+                                        String::from_utf8_lossy(&plain[1..]).to_string()
+                                    ))
+                                    .unwrap();
                                 } else {
                                     tx.send(format!("Failed to decrypt message: {}", msg.encode_hex::<String>()))
                                         .unwrap();
