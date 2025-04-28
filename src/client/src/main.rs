@@ -6,7 +6,7 @@ use crossterm::{
 };
 use futures_util::{SinkExt, StreamExt};
 use hex::ToHex;
-use sectalk::{NONCE_LEN, SEC_KEY_LEN, ZeroizableHash, ZeroizableSecretKey, decrypt, derive_shared_secret};
+use sectalk::{NONCE_LEN, ZeroizableHash, ZeroizableSecretKey, decrypt, derive_shared_secret};
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
