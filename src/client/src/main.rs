@@ -50,7 +50,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let hash: &[u8; SEC_KEY_LEN] = digest.0.as_byte_array();
 
-    let secret_key = Zeroizing::new(ZeroizableSecretKey(SecretKey::from_slice(hash).unwrap()));
+    // let secret_key = Zeroizing::new(ZeroizableSecretKey(SecretKey::from_slice(hash).unwrap()));
+
+    let secret_key = Zeroizing::new(ZeroizableSecretKey(SecretKey::from_byte_array(*hash).unwrap()));
+
+
     let public_key = PublicKey::from_secret_key(&secp, &secret_key.0).serialize();
 
     let public_key_b: [u8; 33] = hex::decode("0310c283aac7b35b4ae6fab201d36e8322c3408331149982e16013a5bcb917081c")
