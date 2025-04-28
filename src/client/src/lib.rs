@@ -20,28 +20,28 @@ struct ZeroizableScalar(Scalar);
 
 impl Zeroize for ZeroizableSecretKey {
     fn zeroize(&mut self) {
-        println!("*** zeroizing secret key ***");
+        // println!("*** zeroizing secret key ***");
         zeroize(&mut self.0);
     }
 }
 
 impl Zeroize for ZeroizablePublicKey {
     fn zeroize(&mut self) {
-        println!("*** zeroizing public key ***");
+        // println!("*** zeroizing public key ***");
         zeroize(&mut self.0);
     }
 }
 
 impl Zeroize for ZeroizableScalar {
     fn zeroize(&mut self) {
-        println!("*** zeroizing scalar ***");
+        // println!("*** zeroizing scalar ***");
         zeroize(&mut self.0);
     }
 }
 
 impl Zeroize for ZeroizableHash {
     fn zeroize(&mut self) {
-        println!("*** zeroizing hash ***");
+        // println!("*** zeroizing hash ***");
         zeroize(&mut self.0);
     }
 }
@@ -108,4 +108,12 @@ pub fn derive_shared_secret(
     Ok(shared_secret_public_key_serialized[1..SEC_KEY_LEN + 1]
         .try_into()
         .unwrap())
+}
+
+pub fn get_message_prefix(c: &char) -> &'static str {
+    match c {
+        'A' => ">",
+        'B' => "<",
+        _ => "?",
+    }
 }

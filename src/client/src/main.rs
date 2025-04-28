@@ -6,7 +6,7 @@ use crossterm::{
 };
 use futures_util::{SinkExt, StreamExt};
 use hex::ToHex;
-use sectalk::{NONCE_LEN, ZeroizableHash, ZeroizableSecretKey, decrypt, derive_shared_secret};
+use sectalk::{NONCE_LEN, ZeroizableHash, ZeroizableSecretKey, decrypt, derive_shared_secret, get_message_prefix};
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -60,9 +60,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let shared_secret =
         Zeroizing::new(derive_shared_secret(&secp, hash.0.as_byte_array(), &public_key_b).map_err(|e| e.to_string())?);
 
-    println!("Your public key: {}", public_key.encode_hex::<String>());
-    println!("Peer public key: {}", public_key_b.encode_hex::<String>());
-    println!("Shared secret: {}", shared_secret.encode_hex::<String>());
+    // println!("Your public key: {}", public_key.encode_hex::<String>());
+    // println!("Peer public key: {}", public_key_b.encode_hex::<String>());
+    // println!("Shared secret: {}", shared_secret.encode_hex::<String>());
 
     enable_raw_mode().unwrap();
     let mut stdout = stdout();
@@ -94,8 +94,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let new_state: Arc<State>;
                     match *state {
                         State::AwaitVerifyMsg => {
-                            tx.send(format!("verify_sig_msg = {}", msg.encode_hex::<String>()))
-                                .unwrap();
+                            // tx.send(format!("verify_sig_msg = {}", msg.encode_hex::<String>()))
+                            //     .unwrap();
 
                             let msg = secp256k1::Message::from_digest(msg.as_ref().try_into().unwrap());
                             let signature_bytes = secp.sign_ecdsa(msg, &secret_key.0).serialize_compact();
@@ -107,12 +107,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 .chain(signature.iter().copied())
                                 .collect();
 
-                            tx.send(format!(
-                                "verified = {} ({})",
-                                ret_msg.encode_hex::<String>(),
-                                ret_msg.len()
-                            ))
-                            .unwrap();
+                            // tx.send(format!(
+                            //     "verified = {} ({})",
+                            //     ret_msg.encode_hex::<String>(),
+                            //     ret_msg.len()
+                            // ))
+                            // .unwrap();
 
                             thread_ws_write
                                 .lock()
@@ -124,32 +124,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             new_state = Arc::new(State::AwaitRoomIdFromServer);
                         }
                         State::AwaitRoomIdFromServer => {
-                            tx.send(format!("Entered room {}", msg.encode_hex::<String>())).unwrap();
+                            tx.send(format!("You joined room {}", msg.encode_hex::<String>())).unwrap();
                             new_state = Arc::new(State::AwaitMessages);
                         }
                         State::AwaitMessages => {
-                            // tx.send(format!("Server: {}", msg.encode_hex::<String>())).unwrap();
-
                             if msg.len() > NONCE_LEN {
-                                if let Ok(plain) = decrypt(
+                                if let Ok(plain_text) = decrypt(
                                     &shared_secret,
                                     &msg[0..NONCE_LEN].try_into().unwrap(),
                                     &msg[NONCE_LEN..],
                                 ) {
-                                    let prefix = match plain[0] {
-                                        b'A' => ">",
-                                        b'B' => "<",
-                                        _ => "?",
-                                    };
                                     tx.send(format!(
                                         "{} {}",
-                                        prefix,
-                                        String::from_utf8_lossy(&plain[1..]).to_string()
+                                        get_message_prefix(&(plain_text[0] as char)),
+                                        String::from_utf8_lossy(&plain_text[1..]).to_string()
                                     ))
                                     .unwrap();
-                                } else {
-                                    tx.send(format!("Failed to decrypt message: {}", msg.encode_hex::<String>()))
-                                        .unwrap();
                                 }
                             }
 
