@@ -16,7 +16,7 @@ use uuid::Uuid;
 use warp::Filter;
 use warp::ws::{Message, WebSocket};
 
-const SERVER_ADDRESS: ([u8; 4], u16) = ([127, 0, 0, 1], 3030);
+const SERVER_ADDRESS: ([u8; 4], u16) = ([0, 0, 0, 0], 3030);
 const SESSION_TIMEOUT_SEC: u64 = 5 * 60;
 const PUB_KEY_LEN: usize = 33;
 const SIG_LEN: usize = 64;
