@@ -60,7 +60,7 @@ function App() {
 
 
     // remote server url
-    // const wsUrl = "https://sectalk.my.to/ws/"
+    // const wsUrl = `https://${window.location.hostname}/ws/`
 
     // test server url:
     const wsUrl = `http://${window.location.hostname}:3030/ws/`
