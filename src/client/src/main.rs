@@ -165,7 +165,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let current_pos = cursor_pos;
             execute!(stdout, MoveToColumn(0), Clear(ClearType::CurrentLine)).unwrap();
 
-            // println!("> {}", message);
             println!("{message}");
 
             print_prompt(&current_input, current_pos);
@@ -228,6 +227,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     disable_raw_mode().unwrap();
+
+    println!("\nDisconnected");
 
     Ok(())
 }
