@@ -63,7 +63,7 @@ function App() {
     // const wsUrl = "https://sectalk.my.to/ws/"
 
     // local server url:
-    const wsUrl = `http://neo.local:3030`
+    const wsUrl = `http://neo.local/ws/:3030`
 
     const socket = new WebSocket(wsUrl);
 
