@@ -1,5 +1,0 @@
-{
-  "port": 3000,
-  "files": ["./dev/**/*.{html,js,css}"],
-  "server": { "baseDir": "./dev" }
-}

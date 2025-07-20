@@ -7,25 +7,27 @@
     "dev:build": "rm -rf dev && mkdir dev && ln ./websrc/index.html ./dev/index.html && ln ./websrc/sectalk.png ./dev/sectalk.png && npx esbuild ./websrc/app.tsx --bundle --target=es6 --outfile=./dev/index.js --minify && npx tailwindcss -i ./websrc/input.css -o ./dev/index.css --minify",
     "dev:watch_esbuild": "npx esbuild ./websrc/app.tsx --bundle --target=es6 --outfile=./dev/index.js --watch --minify",
     "dev:watch_tailwind": "npx tailwindcss -i ./websrc/input.css -o ./dev/index.css --watch --minify",
-    "dev:serve": "lite-server -c bs-config.json > /dev/null",
+    "dev:serve": "live-server ./dev --port=3000 --watch=./dev > /dev/null",
     "build": "./inc_build_num && rm -rf dist && mkdir dist && npm run dev:build && npx html-inline-external --src dev/index.html --minify >> dist/index.html"
   },
   "author": "",
   "license": "MIT",
   "description": "^0.0.4",
   "dependencies": {
-    "@types/libsodium-wrappers": "^0.7.14",
-    "@types/react": "19.1.1",
-    "@types/elliptic": "^6.4.18",
     "bignumber.js": "^9.1.2",
     "elliptic": "^6.5.7",
     "js-sha256": "^0.11.0",
     "libsodium-wrappers": "^0.7.15",
-    "html-inline-external": "^1.0.10",
-    "lite-server": "^2.6.1",
-    "esbuild": "0.25.2",
-    "tailwindcss": "3",
     "react": "19.1.0",
     "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@types/elliptic": "^6.4.18",
+    "@types/libsodium-wrappers": "^0.7.14",
+    "@types/react": "19.1.1",
+    "esbuild": "0.25.2",
+    "tailwindcss": "3",
+    "live-server": "^1.2.2",
+    "html-inline-external": "^1.0.10"
   }
 }
