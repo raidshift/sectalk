@@ -1,0 +1,24 @@
+#!/bin/sh
+
+# Extract the version (strictly X.Y.Z)
+currentVersion=$(./get_version)
+
+echo "Current version: $currentVersion"
+
+# Split into major, minor, patch
+IFS='.' read -r major minor patch <<EOF
+$currentVersion
+EOF
+
+# Increment patch
+incr=1
+patch=$((patch + incr))
+
+# Rebuild version string
+newVersion="$major.$minor.$patch"
+
+echo "New version: $newVersion"
+
+# Update package.json in place
+sed -E "s/(\"version\": *\")[0-9]+\.[0-9]+\.[0-9]+(\".*)/\1$newVersion\2/" package.json > package.json.tmp
+mv package.json.tmp package.json

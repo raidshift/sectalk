@@ -1,23 +1,27 @@
-import React, { useEffect, useRef, useState, ReactElement } from "react";
+import React, { useEffect, useRef, useState, type ReactElement } from "react";
 import ReactDOM from "react-dom/client";
 import EC from 'elliptic';
 import { sha256 } from 'js-sha256';
 import sodium from 'libsodium-wrappers';
 import { version } from "../package.json";
+import './index.css'
 
+export const AppState = {
+  INIT: 'INIT',
+  AWAIT_SECRET_KEY_FROM_USER: 'AWAIT_SECRET_KEY_FROM_USER',
+  AWAIT_PEER_PUB_KEY_FROM_USER: 'AWAIT_PEER_PUB_KEY_FROM_USER',
+  AWAITING_ROOM_ID_FROM_SERVER: 'AWAITING_ROOM_ID_FROM_SERVER',
+  AWAIT_MESSAGES: 'AWAIT_MESSAGES',
+};
 
-enum AppState {
-  INIT,
-  AWAIT_SECRET_KEY_FROM_USER,
-  AWAIT_PEER_PUB_KEY_FROM_USER,
-  AWAITING_ROOM_ID_FROM_SERVER,
-  AWAIT_MESSAGES,
-}
+export type AppState = typeof AppState[keyof typeof AppState];
 
-enum User {
-  ALICE = 0,
-  BOB = 1,
-}
+export const User = {
+  ALICE: 0,
+  BOB: 1,
+} as const;
+
+export type User = typeof User[keyof typeof User];
 
 const isHex = (str: string) => /^[0-9a-fA-F]+$/.test(str);
 
@@ -96,7 +100,7 @@ function App() {
 
     socket.onmessage = function (event) {
       const blob = event.data;
-      blob.arrayBuffer().then(buffer => {
+      blob.arrayBuffer().then((buffer: any) => {
         const bytes = new Uint8Array(buffer);
 
         if (appState === AppState.AWAIT_SECRET_KEY_FROM_USER) {
@@ -105,9 +109,9 @@ function App() {
           hideTerminal(false);
 
         } else if (appState === AppState.AWAITING_ROOM_ID_FROM_SERVER) {
-          const roomId = Array.from(bytes)
-            .map(b => b.toString(16).padStart(2, '0'))
-            .join('');
+          // const roomId = Array.from(bytes)
+          //   .map(b => b.toString(16).padStart(2, '0'))
+          //   .join('');
 
           addMessage(
             <div className="text-gray-400 text-sm">Ready to send messages to online peer</div>
@@ -326,7 +330,7 @@ function App() {
           <span className="text-xl font-bold">sectalk</span>
         </div>
         <div className="text-xs text-gray-700">
-          <span className="text-xs"><a href="https://github.com/raidshift/sectalk" target="_blank" className="text-gray-700 hover:text-gray-600">build 1.0.{version}</a></span>
+          <span className="text-xs"><a href="https://github.com/raidshift/sectalk" target="_blank" className="text-gray-700 hover:text-gray-600">build {version}</a></span>
         </div>
       </div>
       <div className=" text-gray-400 text-sm">
@@ -363,3 +367,6 @@ function App() {
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
 root.render(<App />);
+
+
+

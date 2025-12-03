@@ -1,0 +1,3 @@
+#!/bin/sh
+
+sed -nE 's/.*"version": *"([[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+)".*/\1/p' package.json

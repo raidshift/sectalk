@@ -89,7 +89,7 @@ impl Rooms {
         Rooms(HashMap::new())
     }
 
-    async fn claim_room(
+    async fn enter_room(
         &mut self,
         pka: &[u8; PUB_KEY_LEN],
         pkb: &[u8; PUB_KEY_LEN],
@@ -108,6 +108,7 @@ impl Rooms {
             let mut room_guard = room.lock().await;
 
             room_guard.session_ids.push(session_id.clone());
+            room_guard.session_ids.sort_unstable(); // required for dedup to find consecutive duplicates
             room_guard.session_ids.dedup();
 
             let peer_tx = room_guard.get_peer_tx(peer);
@@ -125,7 +126,7 @@ impl Rooms {
         (room, room_key)
     }
 
-    async fn release_room(&mut self, room: &Arc<Mutex<Room>>, session_id: &Uuid) {
+    async fn leave_room(&mut self, room: &Arc<Mutex<Room>>, session_id: &Uuid) {
         let mut room_guard = room.lock().await;
         room_guard.remove_session(session_id);
 
@@ -237,12 +238,12 @@ async fn handle_session(ws: WebSocket) {
                 let room_key: RoomKey;
 
                 {
-                    let claimed_room: Arc<Mutex<Room>>;
-                    let mut rooms_guard = ROOMS.lock().await;
-                    (claimed_room, room_key) = rooms_guard
-                        .claim_room(&pka, &pkb, &session_id, this_peer.as_ref().unwrap(), tx.clone())
+                    let entered_room: Arc<Mutex<Room>>;
+                    let mut rooms_guard: tokio::sync::MutexGuard<'_, Rooms> = ROOMS.lock().await;
+                    (entered_room, room_key) = rooms_guard
+                        .enter_room(&pka, &pkb, &session_id, this_peer.as_ref().unwrap(), tx.clone())
                         .await;
-                    room = Some(claimed_room);
+                    room = Some(entered_room);
                 }
 
                 let mut tx_guard = tx.lock().await;
@@ -290,7 +291,7 @@ async fn handle_session(ws: WebSocket) {
 
     if let Some(room) = room {
         let mut rooms_guard = ROOMS.lock().await;
-        rooms_guard.release_room(&room, &session_id).await;
+        rooms_guard.leave_room(&room, &session_id).await;
     }
 
     info!("{}: Session closed", session_id);

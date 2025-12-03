@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+@theme {
+  --font-mono: "courier-new", "courier", "monospace";
+}
+
+@utility container {
+
+  @media (min-width: 640px) {
+    max-width: 100%;
+  }
+  
+  @media (min-width: 768px) {
+    max-width: 768px;
+  }
+  
+  @media (min-width: 1024px) {
+    max-width: 768px;
+  }
+  
+  @media (min-width: 1280px) {
+    max-width: 768px;
+  }
+  
+  @media (min-width: 1536px) {
+    max-width: 768px;
+  }
+}
+
+body {
+  @apply bg-black;
+}
+
+div#root {
+  @apply container my-16 p-2 sm:mx-auto font-mono overflow-y-auto bg-gray-900 rounded-lg overflow-x-hidden;
+}
+
+ul {
+  @apply list-disc ms-3 mt-5;
+}
+li {
+  @apply my-2;
+}
+
+input[type="text"],
+input[type="password"] {
+  @apply border-none  outline-none w-full;
+}
+
+.spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  vertical-align: text-bottom;
+  border: 0.1rem solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  -webkit-animation: 0.75s linear infinite spinner;
+  animation: 0.75s linear infinite spinner;
+}
+
+@keyframes spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
