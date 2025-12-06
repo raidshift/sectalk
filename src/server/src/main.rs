@@ -97,7 +97,7 @@ impl Rooms {
         peer: &Peer,
         tx: Arc<Mutex<SplitSink<WebSocket, Message>>>,
     ) -> (Arc<Mutex<Room>>, RoomKey) {
-        let room_key = RoomKey::new(&pka, &pkb);
+        let room_key = RoomKey::new(pka, pkb);
         let room = self
             .0
             .entry(room_key)
@@ -138,17 +138,15 @@ impl Rooms {
 
 static ROOMS: Lazy<Arc<Mutex<Rooms>>> = Lazy::new(|| Arc::new(Mutex::new(Rooms::new())));
 
-fn verify_signature(pka: &[u8], sig: &[u8], message: &[u8]) -> bool {
+fn verify_signature(pka: &[u8; PUB_KEY_LEN], sig: &[u8; SIG_LEN], message: &[u8; SIG_MSG_LEN]) -> bool {
     let secp256k1_context = Secp256k1::verification_only();
 
     PublicKey::from_slice(pka)
         .and_then(|public_key| {
             secp256k1::ecdsa::Signature::from_compact(sig).and_then(|signature| {
-                secp256k1::Message::from_digest_slice(message).and_then(|message| {
-                    secp256k1_context
-                        .verify_ecdsa(&message, &signature, &public_key)
-                        .map(|_| true)
-                })
+                secp256k1_context
+                    .verify_ecdsa(secp256k1::Message::from_digest(*message), &signature, &public_key)
+                    .map(|_| true)
             })
         })
         .unwrap_or(false)
@@ -216,10 +214,11 @@ async fn handle_session(ws: WebSocket) {
                     break;
                 }
 
-                let pka: [u8; PUB_KEY_LEN] = ws_message_bytes[..PUB_KEY_LEN].try_into().unwrap();
-                let pkb: [u8; PUB_KEY_LEN] = ws_message_bytes[PUB_KEY_LEN..2 * PUB_KEY_LEN].try_into().unwrap();
+                let pka: &[u8; PUB_KEY_LEN] = ws_message_bytes[..PUB_KEY_LEN].try_into().unwrap();
+                let pkb: &[u8; PUB_KEY_LEN] = ws_message_bytes[PUB_KEY_LEN..2 * PUB_KEY_LEN].try_into().unwrap();
+                let sig: &[u8; SIG_LEN] = ws_message_bytes[2 * PUB_KEY_LEN..].try_into().unwrap();
 
-                this_peer = match pka.cmp(&pkb) {
+                this_peer = match pka.cmp(pkb) {
                     Ordering::Less => Some(Peer::A),
                     Ordering::Greater => Some(Peer::B),
                     _ => None,
@@ -230,7 +229,7 @@ async fn handle_session(ws: WebSocket) {
                     break;
                 }
 
-                if !verify_signature(&pka, &ws_message_bytes[2 * PUB_KEY_LEN..], &verify_sig_msg) {
+                if !verify_signature(pka, sig, &verify_sig_msg) {
                     debug!("{}: Authentication failed", session_id);
                     break;
                 }
@@ -241,7 +240,7 @@ async fn handle_session(ws: WebSocket) {
                     let entered_room: Arc<Mutex<Room>>;
                     let mut rooms_guard: tokio::sync::MutexGuard<'_, Rooms> = ROOMS.lock().await;
                     (entered_room, room_key) = rooms_guard
-                        .enter_room(&pka, &pkb, &session_id, this_peer.as_ref().unwrap(), tx.clone())
+                        .enter_room(pka, pkb, &session_id, this_peer.as_ref().unwrap(), tx.clone())
                         .await;
                     room = Some(entered_room);
                 }
