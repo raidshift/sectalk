@@ -77,7 +77,6 @@ function App() {
       if (!hide) {
         setTimeout(() => {
           inputRef.current?.focus();
-          console.log("FOCUSING");
         }, 200);
       }
     }
@@ -141,34 +140,19 @@ function App() {
             yourMsg = true;
           }
 
+          let hexNonce = Array.from(nonce).map(b => b.toString(16).padStart(2, '0')).join('');
+
           decryptedString = decryptedString.slice(1);
 
           yourMsg ?
             addMessage(
-              // <div className={`text-emerald-500`}>
-              //   &gt;&nbsp;{decryptedString.trim()}
-              // </div>
-
-              <div className="flex justify-start">
-                <div className=" bg-gray-900 rounded-2xl w-full">
-                  {/* <div className="text-emerald-500 text-xs text-start">You</div> */}
-                  <div className="text-sm text-emerald-400 bg-gray-900 text-left">
-                    &gt;&nbsp;{decryptedString.trim()}
-                  </div>
-                </div>
+              <div className="text-sm text-emerald-400" id={hexNonce}>
+                &gt;&nbsp;{decryptedString.trim()}
               </div>
             ) :
             addMessage(
-              // <div className={` text-sky-500`}>
-              //   &lt;&nbsp;{decryptedString.trim()}
-              // </div>
-              <div className="flex justify-start">
-                <div className=" bg-gray-900 rounded-2xl w-full">
-                  {/* <div className="text-sky-500 text-xs text-start">Peer</div> */}
-                  <div className="text-sm text-sky-400 bg-gray-900 text-left">
-                    &lt;&nbsp;{decryptedString.trim()}
-                  </div>
-                </div>
+              <div className="text-sm text-sky-400" id={hexNonce}>
+                &lt;&nbsp;{decryptedString.trim()}
               </div>
             );
           hideTerminal(false);
@@ -239,8 +223,8 @@ function App() {
           try {
             sharedSecret = keyPair.derive(ec.keyFromPublic(msg, 'hex').getPublic()).toString(16);
 
-            console.log("shared secret: ", sharedSecret);
-            console.log("shared secret length: ", sharedSecret.length);
+            // console.log("shared secret: ", sharedSecret);
+            // console.log("shared secret length: ", sharedSecret.length);
           } catch (err) { console.log("no pub key !!!") }
         }
 
