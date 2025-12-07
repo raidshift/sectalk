@@ -143,17 +143,19 @@ function App() {
 
           decryptedString = decryptedString.slice(1);
 
-          yourMsg ?
+          if (yourMsg) {
+            const msgElement = document.getElementById(hexNonce);
+            if (msgElement) {
+              // msgElement.innerHTML += ' ✓';
+              msgElement.classList.replace('text-emerald-700', 'text-emerald-400');
+            }
+          } else {
             addMessage(
-              <div className="text-sm text-emerald-400" id={hexNonce}>
-                &gt;&nbsp;{decryptedString.trim()}
-              </div>
-            ) :
-            addMessage(
-              <div className="text-sm text-sky-400" id={hexNonce}>
-                &lt;&nbsp;{decryptedString.trim()}
+              <div className="text-sm">
+                <span className="text-sky-400">&lt;&nbsp;</span><span className="text-sky-400" id={hexNonce}>{decryptedString.trim()}</span>
               </div>
             );
+          }
           hideTerminal(false);
 
         }
@@ -219,8 +221,8 @@ function App() {
         msg = msg.toLowerCase();
 
         if (!(msg.length != publicKey.length || msg === publicKey || !isHex(msg) || msg[0] !== '0' || (msg[1] !== '2' && msg[1] !== '3'))) {
-          
-          skaredKey = new Uint8Array(sha256.arrayBuffer(keyPair.derive(ec.keyFromPublic(msg, 'hex').getPublic()).toArray( 'be', 32)));
+
+          skaredKey = new Uint8Array(sha256.arrayBuffer(keyPair.derive(ec.keyFromPublic(msg, 'hex').getPublic()).toArray('be', 32)));
           user = publicKey > msg ? User.ALICE : User.BOB;
 
           const combined = publicKey.concat(msg).concat(signatureHex);
@@ -249,6 +251,7 @@ function App() {
         }
       }
       else if (appState === AppState.AWAIT_MESSAGES) {
+        let origMesg = msg.trim();
 
         msg = user === User.ALICE ? "A" + msg : "B" + msg;
         const encoder = new TextEncoder();
@@ -268,6 +271,14 @@ function App() {
         encryptedMsg.set(nonce);
         encryptedMsg.set(ciphertext, nonce.length);
 
+        let hexNonce = Array.from(nonce).map(b => b.toString(16).padStart(2, '0')).join('');
+
+
+        addMessage(
+          <div className="text-sm">
+            <span className="text-emerald-400">&gt;&nbsp;</span><span className="text-emerald-700" id={hexNonce}>{origMesg}</span>
+          </div>
+        )
         socket.send(encryptedMsg);
 
       }
