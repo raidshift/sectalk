@@ -58,7 +58,7 @@ function App() {
     const ec = new EC.ec('secp256k1');
     let verifySigMsg: Uint8Array;
     let keyPair: EC.ec.KeyPair;
-    let sharedSecret = '';
+    let skaredKey: Uint8Array;
     let publicKey = '';
     let signatureHex = '';
 
@@ -131,8 +131,7 @@ function App() {
 
           const nonce = bytes.slice(0, sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
           const ciphertext = bytes.slice(sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
-          const key = sodium.from_hex(sharedSecret);
-          const decryptedMsg = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(null, ciphertext, null, nonce, key);
+          const decryptedMsg = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(null, ciphertext, null, nonce, skaredKey);
           let decryptedString = decoder.decode(decryptedMsg);
 
           let yourMsg: boolean = false;
@@ -220,22 +219,15 @@ function App() {
         msg = msg.toLowerCase();
 
         if (!(msg.length != publicKey.length || msg === publicKey || !isHex(msg) || msg[0] !== '0' || (msg[1] !== '2' && msg[1] !== '3'))) {
-          try {
-            sharedSecret = keyPair.derive(ec.keyFromPublic(msg, 'hex').getPublic()).toString(16);
-
-            // console.log("shared secret: ", sharedSecret);
-            // console.log("shared secret length: ", sharedSecret.length);
-          } catch (err) { console.log("no pub key !!!") }
-        }
-
-        if (sharedSecret) {
+          skaredKey = new Uint8Array(sha256.arrayBuffer(keyPair.derive(ec.keyFromPublic(msg, 'hex').getPublic()).toArray( 'be', 32)));
+      
           user = publicKey > msg ? User.ALICE : User.BOB;
 
           const combined = publicKey.concat(msg).concat(signatureHex);
           const combinedBytes = new Uint8Array(
             combined.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []
           );
-          // removeTmpDivs()
+
           addMessage(
             <div className="flex text-gray-400 text-sm w-full">
               <div>
@@ -249,9 +241,9 @@ function App() {
               />
             </div>
           );
+          hideTerminal(true);
 
           socket.send(combinedBytes);
-          hideTerminal(true);
 
           appState = AppState.AWAITING_ROOM_ID_FROM_SERVER;
         }
@@ -271,8 +263,7 @@ function App() {
         }
 
         const nonce = sodium.randombytes_buf(sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
-        const key = sodium.from_hex(sharedSecret);
-        const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(encodedMsg, null, null, nonce, key);
+        const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(encodedMsg, null, null, nonce, skaredKey);
         const encryptedMsg = new Uint8Array(nonce.length + ciphertext.length);
         encryptedMsg.set(nonce);
         encryptedMsg.set(ciphertext, nonce.length);
