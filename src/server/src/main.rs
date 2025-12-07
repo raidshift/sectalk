@@ -175,7 +175,7 @@ async fn main() {
 }
 
 async fn send(tx: &mut SplitSink<WebSocket, Message>, id: &Uuid, message: &[u8]) {
-    tx.send(Message::binary(message)).await.unwrap_or_else(|e| {
+    tx.send(Message::binary(message.to_vec())).await.unwrap_or_else(|e| {
         error!("{}: Failed to send message {:?} ({})", id, message, e);
     })
 }
