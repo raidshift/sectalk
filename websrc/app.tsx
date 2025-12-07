@@ -219,8 +219,8 @@ function App() {
         msg = msg.toLowerCase();
 
         if (!(msg.length != publicKey.length || msg === publicKey || !isHex(msg) || msg[0] !== '0' || (msg[1] !== '2' && msg[1] !== '3'))) {
+          
           skaredKey = new Uint8Array(sha256.arrayBuffer(keyPair.derive(ec.keyFromPublic(msg, 'hex').getPublic()).toArray( 'be', 32)));
-      
           user = publicKey > msg ? User.ALICE : User.BOB;
 
           const combined = publicKey.concat(msg).concat(signatureHex);
