@@ -115,7 +115,7 @@ impl Rooms {
 
             if let Some(peer_tx) = peer_tx {
                 let mut tx_guard = peer_tx.lock().await;
-                send(&mut tx_guard, session_id, &[0x00]).await;
+                send_no_error(&mut tx_guard, session_id, &[0x00]).await;
                 debug!("{}: Kicked peer {:?} from room {:?}", session_id, peer, room_key.0);
             }
 
@@ -174,9 +174,13 @@ async fn main() {
     warp::serve(ws_route).run(SERVER_ADDRESS).await;
 }
 
-async fn send(tx: &mut SplitSink<WebSocket, Message>, id: &Uuid, message: &[u8]) {
-    tx.send(Message::binary(message.to_vec())).await.unwrap_or_else(|e| {
-        error!("{}: Failed to send message {:?} ({})", id, message, e);
+async fn send(tx: &mut SplitSink<WebSocket, Message>, message: &[u8]) -> Result<(), warp::Error> {
+    tx.send(Message::binary(message.to_vec())).await
+}
+
+async fn send_no_error(tx: &mut SplitSink<WebSocket, Message>, id: &Uuid, message: &[u8]) {
+    send(tx, message).await.unwrap_or_else(|e| {
+        debug!("{}: Failed to send message {:?} ({})", id, message, e);
     })
 }
 
@@ -196,7 +200,7 @@ async fn handle_session(ws: WebSocket) {
 
     {
         let mut tx_guard = tx.lock().await;
-        send(&mut tx_guard, &session_id, &verify_sig_msg).await;
+        send_no_error(&mut tx_guard, &session_id, &verify_sig_msg).await;
     }
 
     while let Ok(Some(Ok(ws_message))) = timeout(Duration::from_secs(SESSION_TIMEOUT_SEC), rx.next()).await {
@@ -246,7 +250,7 @@ async fn handle_session(ws: WebSocket) {
                 }
 
                 let mut tx_guard = tx.lock().await;
-                send(&mut tx_guard, &session_id, &room_key.0.to_be_bytes()).await;
+                send_no_error(&mut tx_guard, &session_id, &room_key.0.to_be_bytes()).await;
             }
             Some(ref room) => {
                 if ws_message_bytes.len() != WS_MSG_LEN {
@@ -274,15 +278,20 @@ async fn handle_session(ws: WebSocket) {
                 };
 
                 let mut room_guard = room.lock().await;
-
-                if let Some(peer_tx) = room_guard.get_peer_tx(this_peer) {
-                    let mut peer_tx_guard = peer_tx.lock().await;
-                    send(&mut peer_tx_guard, &session_id, &message.0).await;
-                }
+                let mut sent_to_other = false;
 
                 if let Some(peer_tx) = room_guard.get_peer_tx(other_peer) {
                     let mut peer_tx_guard = peer_tx.lock().await;
-                    send(&mut peer_tx_guard, &session_id, &message.0).await;
+                    if send(&mut peer_tx_guard, &message.0).await.is_ok() {
+                        sent_to_other = true;
+                    }
+                }
+
+                if sent_to_other {
+                    if let Some(peer_tx) = room_guard.get_peer_tx(this_peer) {
+                        let mut peer_tx_guard = peer_tx.lock().await;
+                        send_no_error(&mut peer_tx_guard, &session_id, &message.0).await;
+                    }
                 }
             }
         }

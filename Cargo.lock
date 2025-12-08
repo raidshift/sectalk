@@ -1446,7 +1446,7 @@ dependencies = [
 
 [[package]]
 name = "sectalkd"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "env_logger",
  "futures",
