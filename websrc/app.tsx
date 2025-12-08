@@ -93,7 +93,7 @@ function App() {
       removeHistItemDivs();
       addMessage(
         <div className="text-red-400 text-sm">
-          Disconnected from server
+          disconnected from server
         </div>);
     };
 
@@ -104,7 +104,7 @@ function App() {
 
         if (appState === AppState.AWAIT_SECRET_KEY_FROM_USER) {
           verifySigMsg = Uint8Array.from(bytes);
-          setPlaceHolder("Enter your secret key");
+          setPlaceHolder("enter your secret key");
           hideTerminal(false);
 
         } else if (appState === AppState.AWAITING_ROOM_ID_FROM_SERVER) {
@@ -113,10 +113,10 @@ function App() {
           //   .join('');
 
           addMessage(
-            <div className="text-gray-400 text-sm">Ready to send messages to online peer</div>
+            <div className="text-gray-400 text-sm">ready to send ephermal messages to online peer</div>
           );
 
-          setPlaceHolder("Enter your message")
+          setPlaceHolder("enter your message")
 
           appState = AppState.AWAIT_MESSAGES;
           setShowMsgBytes(true);
@@ -201,7 +201,7 @@ function App() {
         addMessage(
           <div className="flex text-gray-400 text-sm w-full">
             <div>
-              Your&nbsp;public&nbsp;key:&nbsp;
+              your&nbsp;public&nbsp;key:&nbsp;
             </div>
             <input
               type="text"
@@ -213,7 +213,7 @@ function App() {
         );
 
         setInputType("text");
-        setPlaceHolder("Enter peer public key");
+        setPlaceHolder("enter peer public key");
 
         appState = AppState.AWAIT_PEER_PUB_KEY_FROM_USER;
       }
@@ -233,7 +233,7 @@ function App() {
           addMessage(
             <div className="flex text-gray-400 text-sm w-full">
               <div>
-                Peer&nbsp;public&nbsp;key:&nbsp;
+                peer&nbsp;public&nbsp;key:&nbsp;
               </div>
               <input
                 type="text"
@@ -313,14 +313,14 @@ function App() {
     <>
       <div className="flex text-gray-400 justify-between">
         <div>
-          <span className="text-xl font-bold">sectalk</span>
+          <span className="text-sm font-bold">sectalk</span>
         </div>
         <div className="text-xs text-gray-700">
           <span className="text-xs"><a href="https://github.com/raidshift/sectalk" target="_blank" className="text-gray-700 hover:text-gray-600">build {version}</a></span>
         </div>
       </div>
       <div className=" text-gray-400 text-sm">
-        A peer-to-peer, end-to-end encrypted messaging protocol
+        a peer-to-peer end-to-end encrypted ephermal chat
       </div>
       <div id="hist">
 
