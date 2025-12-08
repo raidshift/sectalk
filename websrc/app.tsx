@@ -113,7 +113,7 @@ function App() {
           //   .join('');
 
           addMessage(
-            <div className="text-gray-400 text-sm">ready to send ephermal messages to online peer</div>
+            <div className="text-gray-400 text-sm">ready to send ephemeral messages to online peer</div>
           );
 
           setPlaceHolder("enter your message")
@@ -320,7 +320,7 @@ function App() {
         </div>
       </div>
       <div className=" text-gray-400 text-sm">
-        a peer-to-peer end-to-end encrypted ephermal chat
+        chat peer-to-peer with end-to-end encryption and ephemeral messages
       </div>
       <div id="hist">
 
