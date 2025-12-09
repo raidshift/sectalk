@@ -25,9 +25,12 @@ const WS_MSG_LEN: usize = 140;
 
 struct Msg([u8; WS_MSG_LEN]);
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
+struct RoomId(u64);
+#[derive(Clone)]
 struct RoomKey(u64);
 struct Room {
-    room_key: RoomKey,
+    id: RoomId,
+    key: RoomKey,
     peer_a_tx: Option<Arc<Mutex<SplitSink<WebSocket, Message>>>>,
     peer_b_tx: Option<Arc<Mutex<SplitSink<WebSocket, Message>>>>,
     session_ids: Vec<Uuid>,
@@ -38,9 +41,9 @@ enum Peer {
     A,
     B,
 }
-struct Rooms(HashMap<RoomKey, Arc<Mutex<Room>>>);
+struct Rooms(HashMap<RoomId, Arc<Mutex<Room>>>);
 
-impl RoomKey {
+impl RoomId {
     fn new(pub_key_a: &[u8; PUB_KEY_LEN], pub_key_b: &[u8; PUB_KEY_LEN]) -> Self {
         let mut xored = [0u8; PUB_KEY_LEN];
 
@@ -50,20 +53,28 @@ impl RoomKey {
 
         let mut hasher = DefaultHasher::new();
         xored.hash(&mut hasher);
-        RoomKey(hasher.finish())
+        RoomId(hasher.finish())
     }
 }
 
-impl Hash for RoomKey {
+impl RoomKey {
+    fn new() -> Self {
+        let mut rng = ChaCha20Rng::from_os_rng();
+        RoomKey(rng.next_u64())
+    }
+}
+
+impl Hash for RoomId {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write_u64(self.0);
     }
 }
 
 impl Room {
-    fn new(room_key: RoomKey) -> Self {
+    fn new(id: RoomId) -> Self {
         Room {
-            room_key,
+            id,
+            key: RoomKey::new(),
             peer_a_tx: None,
             peer_b_tx: None,
             session_ids: Vec::new(),
@@ -97,18 +108,22 @@ impl Rooms {
         peer: &Peer,
         tx: Arc<Mutex<SplitSink<WebSocket, Message>>>,
     ) -> (Arc<Mutex<Room>>, RoomKey) {
-        let room_key = RoomKey::new(pka, pkb);
+        let room_id = RoomId::new(pka, pkb);
+        let room_key;
+
         let room = self
             .0
-            .entry(room_key)
-            .or_insert_with(|| Arc::new(Mutex::new(Room::new(room_key))))
+            .entry(room_id)
+            .or_insert_with(|| Arc::new(Mutex::new(Room::new(room_id))))
             .clone();
 
         {
             let mut room_guard = room.lock().await;
 
+            room_key = room_guard.key.clone();
+
             room_guard.session_ids.push(session_id.clone());
-            room_guard.session_ids.sort_unstable(); // required for dedup to find consecutive duplicates
+            room_guard.session_ids.sort_unstable();
             room_guard.session_ids.dedup();
 
             let peer_tx = room_guard.get_peer_tx(peer);
@@ -116,11 +131,11 @@ impl Rooms {
             if let Some(peer_tx) = peer_tx {
                 let mut tx_guard = peer_tx.lock().await;
                 send_no_error(&mut tx_guard, session_id, &[0x00]).await;
-                debug!("{}: Kicked peer {:?} from room {:?}", session_id, peer, room_key.0);
+                debug!("{}: Kicked peer {:?} from room {:?}", session_id, peer, room_id.0);
             }
 
             *peer_tx = Some(tx);
-            debug!("{}: Added peer {:?} to room {:?}", session_id, peer, room_key.0);
+            debug!("{}: Added peer {:?} to room {:?}", session_id, peer, room_id.0);
         }
 
         (room, room_key)
@@ -131,7 +146,7 @@ impl Rooms {
         room_guard.remove_session(session_id);
 
         if room_guard.session_ids.is_empty() {
-            self.0.remove(&room_guard.room_key);
+            self.0.remove(&room_guard.id);
         }
     }
 }
