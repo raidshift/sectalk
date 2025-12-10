@@ -58,8 +58,10 @@ function App() {
     const ec = new EC.ec('secp256k1');
     let verifySigMsg: Uint8Array;
     let keyPair: EC.ec.KeyPair;
+    let roomKey: Uint8Array;
     let skaredKey: Uint8Array;
     let publicKey = '';
+    let peerPublicKey = '';
     let signatureHex = '';
 
 
@@ -108,12 +110,20 @@ function App() {
           hideTerminal(false);
 
         } else if (appState === AppState.AWAITING_ROOM_ID_FROM_SERVER) {
-          // const roomId = Array.from(bytes)
-          //   .map(b => b.toString(16).padStart(2, '0'))
-          //   .join('');
+
+          roomKey = Uint8Array.from(bytes);
+
+          const tmpSharedKey = new Uint8Array(keyPair.derive(ec.keyFromPublic(peerPublicKey, 'hex').getPublic()).toArray('be', 32));
+
+          const combined = new Uint8Array(roomKey.length + tmpSharedKey.length);
+
+          combined.set(roomKey, 0);
+          combined.set(tmpSharedKey, roomKey.length);
+
+          skaredKey = new Uint8Array(sha256.arrayBuffer(combined));
 
           addMessage(
-            <div className="text-gray-400 text-sm">ready to send ephemeral messages to online peer</div>
+            <div className="text-gray-400 text-sm">ready to send ephemeral messages to online peer (room = {roomKey})</div>
           );
 
           setPlaceHolder("enter your message")
@@ -222,12 +232,13 @@ function App() {
 
         if (!(msg.length != publicKey.length || msg === publicKey || !isHex(msg) || msg[0] !== '0' || (msg[1] !== '2' && msg[1] !== '3'))) {
 
-          skaredKey = new Uint8Array(sha256.arrayBuffer(keyPair.derive(ec.keyFromPublic(msg, 'hex').getPublic()).toArray('be', 32)));
-          user = publicKey > msg ? User.ALICE : User.BOB;
+          peerPublicKey = msg;
 
-          const combined = publicKey.concat(msg).concat(signatureHex);
+          user = publicKey > peerPublicKey ? User.ALICE : User.BOB;
+
+          const combined = publicKey.concat(peerPublicKey).concat(signatureHex);
           const combinedBytes = new Uint8Array(
-            combined.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []
+            combined.match(/.{2}/g)?.map(byte => parseInt(byte, 16)) || []
           );
 
           addMessage(

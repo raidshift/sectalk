@@ -25,12 +25,12 @@ const WS_MSG_LEN: usize = 140;
 
 struct Msg([u8; WS_MSG_LEN]);
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
-struct RoomId(u64);
-#[derive(Clone)]
 struct RoomKey(u64);
+#[derive(Clone)]
+struct RoomId(u64);
 struct Room {
-    id: RoomId,
     key: RoomKey,
+    rrr: RoomId,
     peer_a_tx: Option<Arc<Mutex<SplitSink<WebSocket, Message>>>>,
     peer_b_tx: Option<Arc<Mutex<SplitSink<WebSocket, Message>>>>,
     session_ids: Vec<Uuid>,
@@ -41,9 +41,9 @@ enum Peer {
     A,
     B,
 }
-struct Rooms(HashMap<RoomId, Arc<Mutex<Room>>>);
+struct Rooms(HashMap<RoomKey, Arc<Mutex<Room>>>);
 
-impl RoomId {
+impl RoomKey {
     fn new(pub_key_a: &[u8; PUB_KEY_LEN], pub_key_b: &[u8; PUB_KEY_LEN]) -> Self {
         let mut xored = [0u8; PUB_KEY_LEN];
 
@@ -53,28 +53,28 @@ impl RoomId {
 
         let mut hasher = DefaultHasher::new();
         xored.hash(&mut hasher);
-        RoomId(hasher.finish())
+        RoomKey(hasher.finish())
     }
 }
 
-impl RoomKey {
+impl RoomId {
     fn new() -> Self {
         let mut rng = ChaCha20Rng::from_os_rng();
-        RoomKey(rng.next_u64())
+        RoomId(rng.next_u64())
     }
 }
 
-impl Hash for RoomId {
+impl Hash for RoomKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write_u64(self.0);
     }
 }
 
 impl Room {
-    fn new(id: RoomId) -> Self {
+    fn new(key: RoomKey) -> Self {
         Room {
-            id,
-            key: RoomKey::new(),
+            key,
+            rrr: RoomId::new(),
             peer_a_tx: None,
             peer_b_tx: None,
             session_ids: Vec::new(),
@@ -107,20 +107,20 @@ impl Rooms {
         session_id: &Uuid,
         peer: &Peer,
         tx: Arc<Mutex<SplitSink<WebSocket, Message>>>,
-    ) -> (Arc<Mutex<Room>>, RoomKey) {
-        let room_id = RoomId::new(pka, pkb);
-        let room_key;
+    ) -> (Arc<Mutex<Room>>, RoomId) {
+        let room_key = RoomKey::new(pka, pkb);
+        let room_id;
 
         let room = self
             .0
-            .entry(room_id)
-            .or_insert_with(|| Arc::new(Mutex::new(Room::new(room_id))))
+            .entry(room_key)
+            .or_insert_with(|| Arc::new(Mutex::new(Room::new(room_key))))
             .clone();
 
         {
             let mut room_guard = room.lock().await;
 
-            room_key = room_guard.key.clone();
+            room_id = room_guard.rrr.clone();
 
             room_guard.session_ids.push(session_id.clone());
             room_guard.session_ids.sort_unstable();
@@ -131,14 +131,14 @@ impl Rooms {
             if let Some(peer_tx) = peer_tx {
                 let mut tx_guard = peer_tx.lock().await;
                 send_no_error(&mut tx_guard, session_id, &[0x00]).await;
-                debug!("{}: Kicked peer {:?} from room {:?}", session_id, peer, room_id.0);
+                debug!("{}: Kicked peer {:?} from room {:?}", session_id, peer, room_key.0);
             }
 
             *peer_tx = Some(tx);
-            debug!("{}: Added peer {:?} to room {:?}", session_id, peer, room_id.0);
+            debug!("{}: Added peer {:?} to room {:?}", session_id, peer, room_key.0);
         }
 
-        (room, room_key)
+        (room, room_id)
     }
 
     async fn leave_room(&mut self, room: &Arc<Mutex<Room>>, session_id: &Uuid) {
@@ -146,7 +146,7 @@ impl Rooms {
         room_guard.remove_session(session_id);
 
         if room_guard.session_ids.is_empty() {
-            self.0.remove(&room_guard.id);
+            self.0.remove(&room_guard.key);
         }
     }
 }
@@ -253,19 +253,19 @@ async fn handle_session(ws: WebSocket) {
                     break;
                 }
 
-                let room_key: RoomKey;
+                let room_id: RoomId;
 
                 {
                     let entered_room: Arc<Mutex<Room>>;
                     let mut rooms_guard: tokio::sync::MutexGuard<'_, Rooms> = ROOMS.lock().await;
-                    (entered_room, room_key) = rooms_guard
+                    (entered_room, room_id) = rooms_guard
                         .enter_room(pka, pkb, &session_id, this_peer.as_ref().unwrap(), tx.clone())
                         .await;
                     room = Some(entered_room);
                 }
 
                 let mut tx_guard = tx.lock().await;
-                send_no_error(&mut tx_guard, &session_id, &room_key.0.to_be_bytes()).await;
+                send_no_error(&mut tx_guard, &session_id, &room_id.0.to_be_bytes()).await;
             }
             Some(ref room) => {
                 if ws_message_bytes.len() != WS_MSG_LEN {
