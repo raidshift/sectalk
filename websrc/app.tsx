@@ -123,7 +123,7 @@ function App() {
           skaredKey = new Uint8Array(sha256.arrayBuffer(combined));
 
           addMessage(
-            <div className="text-gray-400 text-sm">ready to send ephemeral messages to online peer (room = {roomKey})</div>
+            <div className="text-gray-400 text-sm">ready to send ephemeral messages to online peer</div>
           );
 
           setPlaceHolder("enter your message")
@@ -136,38 +136,39 @@ function App() {
         } else if (appState === AppState.AWAIT_MESSAGES) {
           if (bytes.length === 1) {
             socket.close();
-          }
-          const decoder = new TextDecoder('utf-8');
-
-          const nonce = bytes.slice(0, sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
-          const ciphertext = bytes.slice(sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
-          const decryptedMsg = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(null, ciphertext, null, nonce, skaredKey);
-          let decryptedString = decoder.decode(decryptedMsg);
-
-          let yourMsg: boolean = false;
-          if ((decryptedString.startsWith('A') && user === User.ALICE) || (decryptedString.startsWith('B') && user === User.BOB)) {
-            yourMsg = true;
-          }
-
-          let hexNonce = Array.from(nonce).map(b => b.toString(16).padStart(2, '0')).join('');
-
-          decryptedString = decryptedString.slice(1);
-
-          if (yourMsg) {
-            const msgElement = document.getElementById(hexNonce);
-            if (msgElement) {
-              // msgElement.innerHTML += ' ✓';
-              msgElement.classList.replace('text-emerald-700', 'text-emerald-400');
-            }
           } else {
-            addMessage(
-              <div className="text-sm">
-                <span className="text-sky-400">&lt;&nbsp;</span><span className="text-sky-400" id={hexNonce}>{decryptedString.trim()}</span>
-              </div>
-            );
-          }
-          hideTerminal(false);
+            const decoder = new TextDecoder('utf-8');
 
+            const nonce = bytes.slice(0, sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
+            const ciphertext = bytes.slice(sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
+            const decryptedMsg = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(null, ciphertext, null, nonce, skaredKey);
+            let decryptedString = decoder.decode(decryptedMsg);
+
+            let yourMsg: boolean = false;
+            if ((decryptedString.startsWith('A') && user === User.ALICE) || (decryptedString.startsWith('B') && user === User.BOB)) {
+              yourMsg = true;
+            }
+
+            let hexNonce = Array.from(nonce).map(b => b.toString(16).padStart(2, '0')).join('');
+
+            decryptedString = decryptedString.slice(1);
+
+            if (yourMsg) {
+              const msgElement = document.getElementById(hexNonce);
+              if (msgElement) {
+                // msgElement.innerHTML += ' ✓';
+                msgElement.classList.replace('text-emerald-700', 'text-emerald-400');
+              }
+            } else {
+              addMessage(
+                <div className="text-sm">
+                  <span className="text-sky-400">&lt;&nbsp;</span><span className="text-sky-400" id={hexNonce}>{decryptedString.trim()}</span>
+                </div>
+              );
+            }
+            hideTerminal(false);
+
+          }
         }
       })
     };
@@ -202,6 +203,7 @@ function App() {
         const encoder = new TextEncoder();
 
         keyPair = ec.keyFromPrivate(new Uint8Array(sha256.arrayBuffer(encoder.encode(msg))));
+
         publicKey = keyPair.getPublic(true, 'hex',);
 
         const signature = keyPair.sign(verifySigMsg, { canonical: true });
