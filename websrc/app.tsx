@@ -39,12 +39,16 @@ function removeHistItemDivs() {
   histItemDivs.forEach(div => div.remove());
 }
 
-const MinidenticonImg = ({ username, saturation, lightness, ...props }: { username: string; saturation?: string; lightness?: number;[key: string]: any }) => {
+const MinidenticonImg = ({ username }: { username: string; }) => {
+  const saturation = 70;
+  const lightness = 50;
+
   const svgURI = useMemo(
+
     () => 'data:image/svg+xml;utf8,' + encodeURIComponent(minidenticon(username, saturation, lightness)),
     [username, saturation, lightness]
   )
-  return (<img src={svgURI} alt={username} {...props} />)
+  return (<img src={svgURI} alt={username} style={{ width: 18, height: 18 }} />)
 }
 
 function App() {
@@ -229,12 +233,7 @@ function App() {
               readOnly
               className="text-sm bg-gray-900 text-emerald-400 text-left"
             />
-            <MinidenticonImg
-              username={publicKey}
-              saturation="90"
-              width="18"
-              height="18"
-            />
+            <MinidenticonImg username={publicKey} />
           </div>
         );
 
@@ -268,12 +267,7 @@ function App() {
                 readOnly
                 className="text-sm bg-gray-900 text-sky-400 text-left"
               />
-              <MinidenticonImg
-                username={msg}
-                saturation="90"
-                width="18"
-                height="18"
-              />
+              <MinidenticonImg username={publicKey} />
             </div>
           );
           hideTerminal(true);
