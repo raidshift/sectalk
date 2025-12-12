@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState, type ReactElement } from "react";
+import React, { useMemo, useEffect, useRef, useState, type ReactElement } from "react";
 import ReactDOM from "react-dom/client";
+import { minidenticon } from 'minidenticons'
 import EC from 'elliptic';
 import { sha256 } from 'js-sha256';
 import sodium from 'libsodium-wrappers';
@@ -38,6 +39,13 @@ function removeHistItemDivs() {
   histItemDivs.forEach(div => div.remove());
 }
 
+const MinidenticonImg = ({ username, saturation, lightness, ...props }: { username: string; saturation?: string; lightness?: number;[key: string]: any }) => {
+  const svgURI = useMemo(
+    () => 'data:image/svg+xml;utf8,' + encodeURIComponent(minidenticon(username, saturation, lightness)),
+    [username, saturation, lightness]
+  )
+  return (<img src={svgURI} alt={username} {...props} />)
+}
 
 function App() {
   const [hideTerminal, setHideTerminal] = useState(true);
@@ -221,6 +229,12 @@ function App() {
               readOnly
               className="text-sm bg-gray-900 text-emerald-400 text-left"
             />
+            <MinidenticonImg
+              username={publicKey}
+              saturation="90"
+              width="18"
+              height="18"
+            />
           </div>
         );
 
@@ -253,6 +267,12 @@ function App() {
                 value={msg}
                 readOnly
                 className="text-sm bg-gray-900 text-sky-400 text-left"
+              />
+              <MinidenticonImg
+                username={msg}
+                saturation="90"
+                width="18"
+                height="18"
               />
             </div>
           );
