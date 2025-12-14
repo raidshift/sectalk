@@ -4,6 +4,7 @@ import { minidenticon } from 'minidenticons'
 import EC from 'elliptic';
 import { sha256 } from 'js-sha256';
 import sodium from 'libsodium-wrappers';
+import bs58 from 'bs58';
 import { version } from "../package.json";
 import './index.css'
 
@@ -24,10 +25,11 @@ export const User = {
 
 export type User = typeof User[keyof typeof User];
 
-const isHex = (str: string) => /^[0-9a-fA-F]+$/.test(str);
-
 const MSG_LEN = 100;
 const MSG_MAX_BYTES = 99;
+
+const encoder = new TextEncoder();
+
 
 // function removeTmpDivs() {
 //   const tmpDivs = document.querySelectorAll('div.tmp');
@@ -72,9 +74,11 @@ function App() {
     let keyPair: EC.ec.KeyPair;
     let roomKey: Uint8Array;
     let skaredKey: Uint8Array;
-    let publicKey = '';
-    let peerPublicKey = '';
-    let signatureHex = '';
+    let publicKey: Uint8Array = new Uint8Array();
+    let peerPublicKey: Uint8Array = new Uint8Array();
+    let publicKey_base58: string = "";
+    let peerPublicKey_base58: string = "";
+    let signature: Uint8Array = new Uint8Array();
 
     const wsUrl = `/ws/`;
 
@@ -120,7 +124,7 @@ function App() {
 
           roomKey = Uint8Array.from(bytes);
 
-          const tmpSharedKey = new Uint8Array(keyPair.derive(ec.keyFromPublic(peerPublicKey, 'hex').getPublic()).toArray('be', 32));
+          const tmpSharedKey = new Uint8Array(keyPair.derive(ec.keyFromPublic(peerPublicKey).getPublic()).toArray('be', 32));
 
           const combined = new Uint8Array(roomKey.length + tmpSharedKey.length);
 
@@ -207,14 +211,19 @@ function App() {
       msg = msg.trim();
 
       if (appState === AppState.AWAIT_SECRET_KEY_FROM_USER) {
-        const encoder = new TextEncoder();
 
         keyPair = ec.keyFromPrivate(new Uint8Array(sha256.arrayBuffer(encoder.encode(msg))));
 
-        publicKey = keyPair.getPublic(true, 'hex',);
+        publicKey = new Uint8Array(keyPair.getPublic(true, 'array'));
 
-        const signature = keyPair.sign(verifySigMsg, { canonical: true });
-        signatureHex = signature.r.toString('hex').padStart(64, '0') + signature.s.toString('hex').padStart(64, '0');
+        publicKey_base58 = bs58.encode(publicKey);
+
+        const ecSig = keyPair.sign(verifySigMsg, { canonical: true });
+        const rBytes = ecSig.r.toArray('be', 32);
+        const sBytes = ecSig.s.toArray('be', 32);
+        signature = new Uint8Array(64);
+        signature.set(rBytes, 0);
+        signature.set(sBytes, 32);
 
         // removeTmpDivs()
         addMessage(
@@ -224,11 +233,11 @@ function App() {
             </div>
             <input
               type="text"
-              value={publicKey}
+              value={publicKey_base58}
               readOnly
               className="text-sm bg-gray-900 text-emerald-400 text-left"
             />
-            <MinidenticonImg username={publicKey} />
+            <MinidenticonImg username={publicKey_base58} />
           </div>
         );
 
@@ -238,18 +247,17 @@ function App() {
         appState = AppState.AWAIT_PEER_PUB_KEY_FROM_USER;
       }
       else if (appState === AppState.AWAIT_PEER_PUB_KEY_FROM_USER) {
-        msg = msg.toLowerCase();
 
-        if (!(msg.length != publicKey.length || msg === publicKey || !isHex(msg) || msg[0] !== '0' || (msg[1] !== '2' && msg[1] !== '3'))) {
+        if (/^[1-9A-HJ-NP-Za-km-z]+$/.test(msg)) {
+          peerPublicKey = bs58.decode(msg);
+          peerPublicKey_base58 = msg;
+        }
 
-          peerPublicKey = msg;
+        if (peerPublicKey.length === publicKey.length && !peerPublicKey.every((b, i) => b === publicKey[i]) && (peerPublicKey[0] === 2 || peerPublicKey[0] === 3)) {
 
-          user = publicKey > peerPublicKey ? User.ALICE : User.BOB;
+          user = publicKey_base58 > peerPublicKey_base58 ? User.ALICE : User.BOB;
 
-          const combined = publicKey.concat(peerPublicKey).concat(signatureHex);
-          const combinedBytes = new Uint8Array(
-            combined.match(/.{2}/g)?.map(byte => parseInt(byte, 16)) || []
-          );
+          const combined = new Uint8Array([...publicKey, ...peerPublicKey, ...signature]);
 
           addMessage(
             <div className="flex text-gray-400 text-sm w-full">
@@ -258,16 +266,16 @@ function App() {
               </div>
               <input
                 type="text"
-                value={peerPublicKey}
+                value={peerPublicKey_base58}
                 readOnly
                 className="text-sm bg-gray-900 text-sky-400 text-left"
               />
-              <MinidenticonImg username={peerPublicKey} />
+              <MinidenticonImg username={peerPublicKey_base58} />
             </div>
           );
           hideTerminal(true);
 
-          socket.send(combinedBytes);
+          socket.send(combined);
 
           appState = AppState.AWAITING_ROOM_ID_FROM_SERVER;
         }
@@ -276,7 +284,6 @@ function App() {
         let origMesg = msg.trim();
 
         msg = user === User.ALICE ? "A" + msg : "B" + msg;
-        const encoder = new TextEncoder();
         let encodedMsg = encoder.encode(msg);
 
         if (encodedMsg.length < MSG_LEN) {
@@ -295,7 +302,6 @@ function App() {
 
         let hexNonce = Array.from(nonce).map(b => b.toString(16).padStart(2, '0')).join('');
 
-
         addMessage(
           <div className="text-sm">
             <span className="text-emerald-400">&gt;&nbsp;</span><span className="text-emerald-700" id={hexNonce}>{origMesg}</span>
@@ -312,14 +318,14 @@ function App() {
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     let newValue = event.target.value.trimStart();
 
-    let len = new TextEncoder().encode(newValue).length;
+    let len = encoder.encode(newValue).length;
 
     while (len > MSG_MAX_BYTES) {
       newValue = newValue.slice(0, -1);
-      len = new TextEncoder().encode(newValue).length;
+      len = encoder.encode(newValue).length;
     }
     setInputMessage(newValue);
-    setMsgBytes(new TextEncoder().encode(newValue).length);
+    setMsgBytes(encoder.encode(newValue).length);
   };
 
   const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {

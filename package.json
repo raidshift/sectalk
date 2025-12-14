@@ -1,7 +1,7 @@
 {
   "name": "sectalk",
   "private": true,
-  "version": "0.0.9",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -18,6 +18,7 @@
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "5.1.2",
+    "bs58": "^6.0.0",
     "elliptic": "6.6.1",
     "eslint": "9.39.2",
     "eslint-plugin-react-hooks": "7.0.1",
