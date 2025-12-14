@@ -263,11 +263,11 @@ function App() {
               </div>
               <input
                 type="text"
-                value={msg}
+                value={peerPublicKey}
                 readOnly
                 className="text-sm bg-gray-900 text-sky-400 text-left"
               />
-              <MinidenticonImg username={publicKey} />
+              <MinidenticonImg username={peerPublicKey} />
             </div>
           );
           hideTerminal(true);
