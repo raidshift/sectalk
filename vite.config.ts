@@ -6,6 +6,8 @@ import tailwindcss from '@tailwindcss/vite'
 import fs from 'fs'
 import path from 'path'
 
+
+
 function stripCommentsPlugin() {
   return {
     name: 'strip-comments-plugin',
@@ -24,7 +26,15 @@ function stripCommentsPlugin() {
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), viteSingleFile(), ViteMinifyPlugin({}), stripCommentsPlugin()],
-  // esbuild: { legalComments: 'none' },
+  server: {
+    proxy: {
+      '/ws': {
+        target: 'http://localhost:3030',  // DEV server
+        ws: true,
+        changeOrigin: true
+      }
+    }
+  },
   build: {
     minify: 'terser',
     terserOptions: {
