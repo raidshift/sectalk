@@ -73,7 +73,7 @@ function App() {
 
 
   let appState = AppState.INIT;
-  let user: User | undefined = undefined;
+  // let user: User | undefined = undefined;
 
   useEffect(() => {
     const ec = new EC.ec('secp256k1');
