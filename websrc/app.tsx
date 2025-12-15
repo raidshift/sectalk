@@ -18,13 +18,6 @@ export const AppState = {
 
 export type AppState = typeof AppState[keyof typeof AppState];
 
-export const User = {
-  ALICE: 0,
-  BOB: 1,
-} as const;
-
-export type User = typeof User[keyof typeof User];
-
 const MSG_LEN = 100;
 
 const ABORT_MSG_LEN = 1;
@@ -73,7 +66,6 @@ function App() {
 
 
   let appState = AppState.INIT;
-  // let user: User | undefined = undefined;
 
   useEffect(() => {
     const ec = new EC.ec('secp256k1');
@@ -266,8 +258,6 @@ function App() {
         }
 
         if (peerPublicKey.length === publicKey.length && !peerPublicKey.every((b, i) => b === publicKey[i]) && (peerPublicKey[0] === 2 || peerPublicKey[0] === 3)) {
-
-          user = publicKey_base58 > peerPublicKey_base58 ? User.ALICE : User.BOB;
 
           const combined = new Uint8Array([...publicKey, ...peerPublicKey, ...signature]);
 
