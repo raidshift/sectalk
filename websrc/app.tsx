@@ -121,9 +121,10 @@ function App() {
 
         } else if (appState === AppState.AWAITING_ROOM_ID_FROM_SERVER) {
 
-          roomKey = Uint8Array.from(bytes);
 
           const tmpSharedKey = new Uint8Array(keyPair.derive(ec.keyFromPublic(peerPublicKey).getPublic()).toArray('be', 32));
+
+          roomKey = Uint8Array.from(bytes);
 
           const combined = new Uint8Array(roomKey.length + tmpSharedKey.length);
 
@@ -259,27 +260,33 @@ function App() {
 
         if (peerPublicKey.length === publicKey.length && !peerPublicKey.every((b, i) => b === publicKey[i]) && (peerPublicKey[0] === 2 || peerPublicKey[0] === 3)) {
 
-          const combined = new Uint8Array([...publicKey, ...peerPublicKey, ...signature]);
+          try {
+            ec.keyFromPublic(peerPublicKey);
 
-          addMessage(
-            <div className="flex text-gray-400 text-sm w-full">
-              <div>
-                peer&nbsp;public&nbsp;key:&nbsp;
+
+            const combined = new Uint8Array([...publicKey, ...peerPublicKey, ...signature]);
+
+            addMessage(
+              <div className="flex text-gray-400 text-sm w-full">
+                <div>
+                  peer&nbsp;public&nbsp;key:&nbsp;
+                </div>
+                <input
+                  type="text"
+                  value={peerPublicKey_base58}
+                  readOnly
+                  className="text-sm bg-gray-900 text-sky-400 text-left"
+                />
+                <MinidenticonImg username={peerPublicKey_base58} />
               </div>
-              <input
-                type="text"
-                value={peerPublicKey_base58}
-                readOnly
-                className="text-sm bg-gray-900 text-sky-400 text-left"
-              />
-              <MinidenticonImg username={peerPublicKey_base58} />
-            </div>
-          );
-          hideTerminal(true);
+            );
+            hideTerminal(true);
 
-          socket.send(combined);
+            socket.send(combined);
 
-          appState = AppState.AWAITING_ROOM_ID_FROM_SERVER;
+            appState = AppState.AWAITING_ROOM_ID_FROM_SERVER;
+          }
+          catch (e) {}
         }
       }
       else if (appState === AppState.AWAIT_MESSAGES) {
@@ -301,11 +308,6 @@ function App() {
         const encryptedMsg = new Uint8Array(nonce.length + ciphertext.length);
         encryptedMsg.set(nonce);
         encryptedMsg.set(ciphertext, nonce.length);
-
-        // console.log("encoded length     :", encodedMsg.length);
-        // console.log("nonce length       :", nonce.length);
-        // console.log("ciphertext length  :", ciphertext.length);
-        // console.log('encryptedMsg length:', encryptedMsg.length);
 
         let hexNonce = Array.from(nonce).map(b => b.toString(16).padStart(2, '0')).join('');
         console.log("sending message with nonce: ", hexNonce);
