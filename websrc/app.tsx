@@ -26,9 +26,16 @@ export const User = {
 export type User = typeof User[keyof typeof User];
 
 const MSG_LEN = 100;
-const MSG_MAX_BYTES = 99;
+
+const ABORT_MSG_LEN = 1;
+const ENCRYPTED_MSG_LEN = 24 + 100 + 16; // nonce + ciphertext + auth tag
+const ENCRYPTED_MSG_RECEIVED_CONF_LEN = 24; // nonce
+
+// const MSG_MAX_BYTES = 99;
 
 const encoder = new TextEncoder();
+const decoder = new TextDecoder('utf-8');
+
 
 
 // function removeTmpDivs() {
@@ -145,41 +152,46 @@ function App() {
 
 
         } else if (appState === AppState.AWAIT_MESSAGES) {
-          if (bytes.length === 1) {
+
+          if (bytes.length === ABORT_MSG_LEN) {
             socket.close();
-          } else {
-            const decoder = new TextDecoder('utf-8');
+          } else if (bytes.length === ENCRYPTED_MSG_LEN) {
 
             const nonce = bytes.slice(0, sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
             const ciphertext = bytes.slice(sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
             const decryptedMsg = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(null, ciphertext, null, nonce, skaredKey);
             let decryptedString = decoder.decode(decryptedMsg);
 
-            let yourMsg: boolean = false;
-            if ((decryptedString.startsWith('A') && user === User.ALICE) || (decryptedString.startsWith('B') && user === User.BOB)) {
-              yourMsg = true;
-            }
+            // let yourMsg: boolean = false;
+            // if ((decryptedString.startsWith('A') && user === User.ALICE) || (decryptedString.startsWith('B') && user === User.BOB)) {
+            //   yourMsg = true;
+            // }
 
-            let hexNonce = Array.from(nonce).map(b => b.toString(16).padStart(2, '0')).join('');
+            // decryptedString = decryptedString.slice(1);
+            let hexNonce = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 
-            decryptedString = decryptedString.slice(1);
 
-            if (yourMsg) {
-              const msgElement = document.getElementById(hexNonce);
-              if (msgElement) {
-                // msgElement.innerHTML += ' ✓';
-                msgElement.classList.replace('text-emerald-700', 'text-emerald-400');
-              }
-            } else {
-              addMessage(
-                <div className="text-sm">
-                  <span className="text-sky-400">&lt;&nbsp;</span><span className="text-sky-400" id={hexNonce}>{decryptedString.trim()}</span>
-                </div>
-              );
-            }
-            hideTerminal(false);
+            addMessage(
+              <div className="text-sm">
+                <span className="text-sky-400">&lt;&nbsp;</span><span className="text-sky-400" id={hexNonce}>{decryptedString.trim()}</span>
+              </div>
+            );
 
+            socket.send(nonce); // send received confirmation back to sender
           }
+          else if (bytes.length === ENCRYPTED_MSG_RECEIVED_CONF_LEN) {
+
+            let hexNonce = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+            console.log("received confirmation for nonce: ", hexNonce);
+
+            const msgElement = document.getElementById(hexNonce);
+            if (msgElement) {
+              msgElement.classList.replace('text-emerald-700', 'text-emerald-400');
+            }
+          } else {
+            console.log("received message with invalid length: ", bytes.length);
+          }
+          hideTerminal(false);
         }
       })
     };
@@ -283,7 +295,7 @@ function App() {
       else if (appState === AppState.AWAIT_MESSAGES) {
         let origMesg = msg.trim();
 
-        msg = user === User.ALICE ? "A" + msg : "B" + msg;
+        // msg = user === User.ALICE ? "A" + msg : "B" + msg;
         let encodedMsg = encoder.encode(msg);
 
         if (encodedMsg.length < MSG_LEN) {
@@ -300,7 +312,13 @@ function App() {
         encryptedMsg.set(nonce);
         encryptedMsg.set(ciphertext, nonce.length);
 
+        // console.log("encoded length     :", encodedMsg.length);
+        // console.log("nonce length       :", nonce.length);
+        // console.log("ciphertext length  :", ciphertext.length);
+        // console.log('encryptedMsg length:', encryptedMsg.length);
+
         let hexNonce = Array.from(nonce).map(b => b.toString(16).padStart(2, '0')).join('');
+        console.log("sending message with nonce: ", hexNonce);
 
         addMessage(
           <div className="text-sm">
@@ -320,7 +338,7 @@ function App() {
 
     let len = encoder.encode(newValue).length;
 
-    while (len > MSG_MAX_BYTES) {
+    while (len > MSG_LEN) {
       newValue = newValue.slice(0, -1);
       len = encoder.encode(newValue).length;
     }
@@ -367,7 +385,7 @@ function App() {
         </form>
         {showMsgBytes && msgBytes > 0 ? (
           <div className="text-xs text-gray-500 ps-3">
-            ({msgBytes}/{MSG_MAX_BYTES} bytes)
+            ({msgBytes}/{MSG_LEN} bytes)
           </div>
         ) : null
         }
