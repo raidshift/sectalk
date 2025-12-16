@@ -1,7 +1,30 @@
-deploy file sectalkd.service in /etc/sytemd/system
+mkdir -p ~/.config/systemd/user
 
-sudo systemctl daemon-reload
-sudo systemctl enable sectalkd.service
-sudo systemctl start sectalkd.service
+cat > ~/.config/systemd/user/sectalkd.service << 'EOF'
+[Unit]
+Description=sectalkd (user service)
+After=network-online.target
+Wants=network-online.target
 
-sudo journalctl -u sectalkd.service -f
+[Service]
+Type=simple
+ExecStart=/home/<user>/sectalkd
+WorkingDirectory=/home/<user>/.sectalkd
+Restart=on-failure
+RestartSec=5
+Environment=RUST_LOG=info
+
+[Install]
+WantedBy=default.target
+EOF
+
+
+
+systemctl --user daemon-reload
+systemctl --user enable sectalkd
+systemctl --user start sectalkd
+systemctl --user status sectalkd
+
+#Enabled user service to start automatically after boot.
+sudo loginctl enable-linger <user>
+
