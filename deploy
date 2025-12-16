@@ -48,7 +48,7 @@ echo "✓ OK"
 
 # stop service
 echo "Stopping service ..."
-if ! ssh "$USER@$SERVER" "sudo systemctl stop sectalkd"; then
+if ! ssh "$USER@$SERVER" "systemctl --user stop sectalkd"; then
     echo "✗ Failed to stop sectalkd service"
     exit 1
 fi
@@ -67,9 +67,9 @@ echo "✓ OK"
 # Start service
 echo "Starting sectalkd service ..."
 if ! ssh "$USER@$SERVER" "
-    sudo systemctl daemon-reload &&
-    sudo systemctl start sectalkd &&
-    sudo systemctl is-active --quiet sectalkd
+    systemctl --user daemon-reload &&
+    systemctl --user start sectalkd &&
+    systemctl --user is-active --quiet sectalkd
 "; then
     echo "✗ Failed to start sectalkd service"
     exit 1
