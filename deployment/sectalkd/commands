@@ -28,3 +28,6 @@ systemctl --user status sectalkd
 #Enabled user service to start automatically after boot.
 sudo loginctl enable-linger <user>
 
+#Logs
+journalctl --user-unit=sectalkd -f
+
