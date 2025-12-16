@@ -1,1 +1,7 @@
+deploy file sectalkd.service in /etc/sytemd/system
+
+sudo systemctl daemon-reload
+sudo systemctl enable sectalkd.service
+sudo systemctl start sectalkd.service
+
 sudo journalctl -u sectalkd.service -f
