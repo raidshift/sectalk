@@ -165,7 +165,7 @@ function App() {
             if (msgElement) {
               msgElement.classList.replace('text-emerald-700', 'text-emerald-400');
             }
-          } 
+          }
           hideTerminal(false);
         }
       })
@@ -218,13 +218,14 @@ function App() {
             <div>
               your&nbsp;public&nbsp;key:&nbsp;
             </div>
+            <MinidenticonImg username={publicKey_base58} />
             <input
               type="text"
               value={publicKey_base58}
               readOnly
-              className="text-sm bg-gray-900 text-emerald-400 text-left"
+              className="ps-1 text-sm text-emerald-400 text-left"
             />
-            <MinidenticonImg username={publicKey_base58} />
+            <button className="border rounded-xl text-xs px-2 text-emerald-700 hover:text-emerald-400 ml-1" onClick={() => navigator.clipboard.writeText(publicKey_base58)}>copy</button>
           </div>
         );
 
@@ -253,13 +254,13 @@ function App() {
                 <div>
                   peer&nbsp;public&nbsp;key:&nbsp;
                 </div>
+                <MinidenticonImg username={peerPublicKey_base58} />
                 <input
                   type="text"
                   value={peerPublicKey_base58}
                   readOnly
-                  className="text-sm bg-gray-900 text-sky-400 text-left"
+                  className="ms-1 text-sm text-sky-400 text-left"
                 />
-                <MinidenticonImg username={peerPublicKey_base58} />
               </div>
             );
             hideTerminal(true);
@@ -268,7 +269,7 @@ function App() {
 
             appState = AppState.AWAITING_ROOM_ID_FROM_SERVER;
           }
-          catch (e) {}
+          catch (e) { }
         }
       }
       else if (appState === AppState.AWAIT_MESSAGES) {
@@ -352,7 +353,7 @@ function App() {
             onChange={handleInputChange}
             ref={inputRef}
             placeholder={placeholder}
-            className="text-emerald-400 placeholder-emerald-700 bg-gray-900"
+            className="text-emerald-400 placeholder-emerald-700"
           />
         </form>
         {showMsgBytes && msgBytes > 0 ? (
