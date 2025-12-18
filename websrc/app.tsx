@@ -23,9 +23,21 @@ const MSG_LEN = 100;
 const ABORT_MSG_LEN = 1;
 const ENCRYPTED_MSG_LEN = 24 + 100 + 16; // nonce + ciphertext + auth tag
 const ENCRYPTED_MSG_RECEIVED_CONF_LEN = 24; // nonce
+const TEXT_ENCODER = new TextEncoder();
+const TEXT_DECODER = new TextDecoder('utf-8');
+const ELLIPTIC_CURVE = new EC.ec('secp256k1');
+const WS_URL = `/ws/`;
 
-const encoder = new TextEncoder();
-const decoder = new TextDecoder('utf-8');
+let verifySigMsg: Uint8Array;
+let keyPair: EC.ec.KeyPair;
+let roomKey: Uint8Array;
+let skaredKey: Uint8Array;
+let publicKey: Uint8Array = new Uint8Array();
+let peerPublicKey: Uint8Array = new Uint8Array();
+let publicKey_base58: string = "";
+let peerPublicKey_base58: string = "";
+let signature: Uint8Array = new Uint8Array();
+
 
 function removeHistItemDivs() {
   const histItemDivs = document.querySelectorAll('div.histitem');
@@ -59,20 +71,8 @@ function App() {
   let appState = AppState.INIT;
 
   useEffect(() => {
-    const ec = new EC.ec('secp256k1');
-    let verifySigMsg: Uint8Array;
-    let keyPair: EC.ec.KeyPair;
-    let roomKey: Uint8Array;
-    let skaredKey: Uint8Array;
-    let publicKey: Uint8Array = new Uint8Array();
-    let peerPublicKey: Uint8Array = new Uint8Array();
-    let publicKey_base58: string = "";
-    let peerPublicKey_base58: string = "";
-    let signature: Uint8Array = new Uint8Array();
 
-    const wsUrl = `/ws/`;
-
-    const socket = new WebSocket(wsUrl);
+    const socket = new WebSocket(WS_URL);
 
     function hideTerminal(hide: boolean) {
       setHideTerminal(hide);
@@ -113,7 +113,7 @@ function App() {
         } else if (appState === AppState.AWAITING_ROOM_ID_FROM_SERVER) {
 
 
-          const tmpSharedKey = new Uint8Array(keyPair.derive(ec.keyFromPublic(peerPublicKey).getPublic()).toArray('be', 32));
+          const tmpSharedKey = new Uint8Array(keyPair.derive(ELLIPTIC_CURVE.keyFromPublic(peerPublicKey).getPublic()).toArray('be', 32));
 
           roomKey = Uint8Array.from(bytes);
 
@@ -144,7 +144,7 @@ function App() {
             const nonce = bytes.slice(0, sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
             const ciphertext = bytes.slice(sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
             const decryptedMsg = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(null, ciphertext, null, nonce, skaredKey);
-            let decryptedString = decoder.decode(decryptedMsg);
+            let decryptedString = TEXT_DECODER.decode(decryptedMsg);
 
             let hexNonce = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 
@@ -199,7 +199,7 @@ function App() {
 
       if (appState === AppState.AWAIT_SECRET_KEY_FROM_USER) {
 
-        keyPair = ec.keyFromPrivate(new Uint8Array(sha256.arrayBuffer(encoder.encode(msg))));
+        keyPair = ELLIPTIC_CURVE.keyFromPrivate(new Uint8Array(sha256.arrayBuffer(TEXT_ENCODER.encode(msg))));
 
         publicKey = new Uint8Array(keyPair.getPublic(true, 'array'));
 
@@ -244,7 +244,7 @@ function App() {
         if (peerPublicKey.length === publicKey.length && !peerPublicKey.every((b, i) => b === publicKey[i]) && (peerPublicKey[0] === 2 || peerPublicKey[0] === 3)) {
 
           try {
-            ec.keyFromPublic(peerPublicKey);
+            ELLIPTIC_CURVE.keyFromPublic(peerPublicKey);
 
 
             const combined = new Uint8Array([...publicKey, ...peerPublicKey, ...signature]);
@@ -275,12 +275,12 @@ function App() {
       else if (appState === AppState.AWAIT_MESSAGES) {
         let origMesg = msg.trim();
 
-        let encodedMsg = encoder.encode(msg);
+        let encodedMsg = TEXT_ENCODER.encode(msg);
 
         if (encodedMsg.length < MSG_LEN) {
           const padding = MSG_LEN - encodedMsg.length;
           msg = msg + ' '.repeat(padding);
-          encodedMsg = encoder.encode(msg);
+          encodedMsg = TEXT_ENCODER.encode(msg);
         } else if (encodedMsg.length > MSG_LEN) {
           encodedMsg = encodedMsg.slice(0, MSG_LEN);
         }
@@ -309,14 +309,14 @@ function App() {
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     let newValue = event.target.value.trimStart();
 
-    let len = encoder.encode(newValue).length;
+    let len = TEXT_ENCODER.encode(newValue).length;
 
     while (len > MSG_LEN) {
       newValue = newValue.slice(0, -1);
-      len = encoder.encode(newValue).length;
+      len = TEXT_ENCODER.encode(newValue).length;
     }
     setInputMessage(newValue);
-    setMsgBytes(encoder.encode(newValue).length);
+    setMsgBytes(TEXT_ENCODER.encode(newValue).length);
   };
 
   const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
