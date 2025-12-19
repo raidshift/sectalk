@@ -334,6 +334,7 @@ function App() {
               ref={inputRef}
               placeholder={placeholder}
               className="text-emerald-400 placeholder-emerald-700"
+              autoComplete="off"
               id="text-input"
             />
           </form>
