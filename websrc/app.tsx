@@ -39,6 +39,15 @@ let peerPublicKey_base58: string = "";
 let signature: Uint8Array = new Uint8Array();
 
 
+
+function shorten(str: string, by: number, start: number = 0, sep: string = "") {
+  if (!by) { by = 5 }
+  if (!start) { start = 0 }
+  if (!sep) { sep = "..." }
+  let short = str;
+  return short.substring(start, by) + sep + short.substring(short.length - by, short.length);
+}
+
 function removeHistItemDivs() {
   const histItemDivs = document.querySelectorAll('div.histitem');
   histItemDivs.forEach(div => div.remove());
@@ -183,28 +192,28 @@ function App() {
         signature.set(rBytes, 0);
         signature.set(sBytes, 32);
         addMessage(
-          <div className="flex text-gray-400 text-sm w-full">
+          <div className="flex flex-row items-center text-gray-400 text-sm w-full">
             <div>
               your&nbsp;public&nbsp;key:&nbsp;
             </div>
             <MinidenticonImg username={publicKey_base58} />
-            <input
-              type="text"
-              value={publicKey_base58}
-              readOnly
-              className="ps-1 text-sm text-emerald-400 text-left"
-            />
-            <button className="text-xs px-2 text-emerald-700 hover:text-emerald-500 ml-1 active:text-emerald-400" onClick={() => navigator.clipboard.writeText(publicKey_base58)}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-clipboard" viewBox="0 0 16 16">
-                <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z" />
-                <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0z" />
-              </svg>
+            <div className="sm:hidden text-emerald-400 mr-1">{shorten(publicKey_base58, 7)}</div>
+            <div className="hidden sm:block text-emerald-400 mr-1">{publicKey_base58}</div>
+            <button className="text-xs px-2 py-1 border rounded-xl text-emerald-700 hover:text-emerald-500 ml-auto active:text-emerald-400" onClick={() => navigator.clipboard.writeText(publicKey_base58)}>
+              <div className="flex flex-row justify-center items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="currentColor" className="bi bi-clipboard-fill" viewBox="0 0 16 16">
+                  <path fillRule="evenodd" d="M10 1.5a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5zm-5 0A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5v1A1.5 1.5 0 0 1 9.5 4h-3A1.5 1.5 0 0 1 5 2.5zm-2 0h1v1A2.5 2.5 0 0 0 6.5 5h3A2.5 2.5 0 0 0 12 2.5v-1h1a2 2 0 0 1 2 2V14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V3.5a2 2 0 0 1 2-2" />
+                </svg>
+              </div>
             </button>
           </div>
         );
         setInputType("text");
         setPlaceHolder("enter peer public key");
         appState = AppState.AWAIT_PEER_PUB_KEY_FROM_USER;
+
+        let peerPublicKeyInUrl = window.location.hash.slice(1);
+        if (peerPublicKeyInUrl) { handleMessage(peerPublicKeyInUrl) }
       }
 
       else if (appState === AppState.AWAIT_PEER_PUB_KEY_FROM_USER) {
@@ -217,21 +226,18 @@ function App() {
             ELLIPTIC_CURVE.keyFromPublic(peerPublicKey);
             const combined = new Uint8Array([...publicKey, ...peerPublicKey, ...signature]);
             addMessage(
-              <div className="flex text-gray-400 text-sm w-full">
+              <div className="flex flex-row items-center text-gray-400 text-sm w-full">
                 <div>
                   peer&nbsp;public&nbsp;key:&nbsp;
                 </div>
                 <MinidenticonImg username={peerPublicKey_base58} />
-                <input
-                  type="text"
-                  value={peerPublicKey_base58}
-                  readOnly
-                  className="ms-1 text-sm text-sky-400 text-left"
-                />
+                <div className="sm:hidden text-sky-400 mr-1">{shorten(peerPublicKey_base58, 7)}</div>
+                <div className="hidden sm:block text-sky-400 mr-1">{peerPublicKey_base58}</div>
               </div>
             );
             hideTerminal(true);
             socket.send(combined);
+            history.pushState(null, "", `#${peerPublicKey_base58}`);
             appState = AppState.AWAITING_ROOM_ID_FROM_SERVER;
           }
           catch (e) { }
