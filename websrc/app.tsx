@@ -83,7 +83,6 @@ function App() {
   useEffect(() => {
     const socket = new WebSocket(WS_URL);
     socket.onopen = () => { appState = AppState.AWAIT_SECRET_KEY_FROM_USER; };
-    // setInputType("password");
 
     function hideTerminal(hide: boolean) {
       setHiddenTerminal(hide);
