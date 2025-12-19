@@ -65,12 +65,16 @@ function App() {
   const handleMessageRef = useRef<(msg: string) => void>(() => { });
   const inputRef = useRef<HTMLInputElement>(null);
 
-
   let appState = AppState.INIT;
+
+  useEffect(() => {
+    inputRef.current!.focus();
+  }, [inputType]);
 
   useEffect(() => {
     const socket = new WebSocket(WS_URL);
     socket.onopen = () => { appState = AppState.AWAIT_SECRET_KEY_FROM_USER; };
+    // setInputType("password");
 
     function hideTerminal(hide: boolean) {
       setHiddenTerminal(hide);
@@ -102,8 +106,6 @@ function App() {
         behavior: 'smooth'
       });
     }).observe(inputRef.current as HTMLElement, { attributes: true });
-
-
 
 
     socket.onclose = () => {
@@ -301,17 +303,36 @@ function App() {
       <div id="hist">
       </div>
       <div className="text-sm" style={{ display: hiddenTerminal || terminateApp ? 'none' : 'block' }}>
-        <form onSubmit={handleFormSubmit} className="flex flex-row justify-center align-center text-emerald-400">
-          <div>&gt;&nbsp;</div>
-          <input
-            type={inputType}
-            value={inputMessage}
-            onChange={handleInputChange}
-            ref={inputRef}
-            placeholder={placeholder}
-            className="text-emerald-400 placeholder-emerald-700"
-          />
-        </form>
+        {inputType === "password" ? (
+          <form onSubmit={handleFormSubmit} className="flex flex-row justify-center align-center text-emerald-400" id="password_form">
+            <div>&gt;&nbsp;</div>
+            <input
+              key="password-input"
+              type="password"
+              value={inputMessage}
+              onChange={handleInputChange}
+              ref={inputRef}
+              placeholder={placeholder}
+              className="text-emerald-400 placeholder-emerald-700"
+              autoComplete="current-password"
+              id="password-input"
+            />
+          </form>
+        ) : (
+          <form onSubmit={handleFormSubmit} className="flex flex-row justify-center align-center text-emerald-400" id="text_form">
+            <div>&gt;&nbsp;</div>
+            <input
+              key="text-input"
+              type="text"
+              value={inputMessage}
+              onChange={handleInputChange}
+              ref={inputRef}
+              placeholder={placeholder}
+              className="text-emerald-400 placeholder-emerald-700"
+              id="text-input"
+            />
+          </form>
+        )}
         {showMsgBytes && msgBytes > 0 ? (
           <div className="text-xs text-gray-500 ps-3">
             ({msgBytes}/{MSG_LEN} bytes)

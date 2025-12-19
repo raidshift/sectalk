@@ -1,16 +1,23 @@
 #!/bin/bash
 
-if [ $# -ne 2 ]; then
-    echo "Usage: $0 <user> <server>"
-    echo "Example: $0 john 192.168.1.100"
+if [ $# -ne 3 ]; then
+    echo "Usage: $0 <target> <ssh-user> <ssh-server>"
+    echo "<target>: 'web' or 'service'"
     exit 1
 fi
 
-USER="$1"
-SERVER="$2"
+TARGET="$1"
+USER="$2"
+SERVER="$3"
 
 TARGET_WEB_CLIENT="/var/www/sectalk.my.to/html/"
 TARGET_SERVER="~/"
+
+# Validate target parameter
+if [[ "$TARGET" != "web" && "$TARGET" != "service" ]]; then
+    echo "✗ Invalid target '$TARGET'. Must be 'web' or 'service'"
+    exit 1
+fi
 
 # Test SSH connection 
 echo "Testing SSH connection to $USER@$SERVER ..."
@@ -19,61 +26,67 @@ if ! ssh -o ConnectTimeout=10 -o BatchMode=yes "$USER@$SERVER" "echo '✓ OK'"; 
     exit 1
 fi
 
-# Build Web client
-echo "Building Web client ..."
-if ! npm run build; then
-    echo "✗ npm run build failed"
-    exit 1
+if [ "$TARGET" == "web" ]; then
+    # Build Web client
+    echo "Building Web client ..."
+    if ! npm run build; then
+        echo "✗ npm run build failed"
+        exit 1
+    fi
+
+    echo "✓ OK"
+
+    # Deploy Web client
+    echo "Deploying Web client ..."
+    if ! scp dist/index.html "$USER@$SERVER:$TARGET_WEB_CLIENT"; then
+        echo "✗ Failed to deploy dist/index.html"
+        exit 1
+    fi
+
+    echo "✓ OK"
 fi
 
-echo "✓ OK"
+if [ "$TARGET" == "service" ]; then
+    # Build service
+    echo "Building service ..."
+    if ! cargo build --release; then
+        echo "✗ cargo build --release failed"
+        exit 1
+    fi
 
-# Build service
-echo "Building service ..."
-if ! cargo build --release; then
-    echo "✗ cargo build --release failed"
-    exit 1
+    echo "✓ OK"
+
+    # stop service
+    echo "Stopping service ..."
+    if ! ssh "$USER@$SERVER" "systemctl --user stop sectalkd"; then
+        echo "✗ Failed to stop sectalkd service"
+        exit 1
+    fi
+
+    echo "✓ OK"
+
+    # Deploy service
+    echo "Deploying service ..."
+    if ! scp target/release/sectalkd "$USER@$SERVER:$TARGET_SERVER"; then
+        echo "✗ Failed to deploy target/release/sectalkd"
+        exit 1
+    fi
+
+    echo "✓ OK"
+
+    # Start service
+    echo "Starting sectalkd service ..."
+    if ! ssh "$USER@$SERVER" "
+        systemctl --user daemon-reload &&
+        systemctl --user start sectalkd &&
+        systemctl --user is-active --quiet sectalkd
+    "; then
+        echo "✗ Failed to start sectalkd service"
+        exit 1
+    fi
+
+    echo "✓ OK"
 fi
 
-echo "✓ OK"
-
-# Deploy Web client
-echo "Deploying Web client ..."
-if ! scp dist/index.html "$USER@$SERVER:$TARGET_WEB_CLIENT"; then
-    echo "✗ Failed to deploy dist/index.html"
-    exit 1
-fi
-
-echo "✓ OK"
-
-# stop service
-echo "Stopping service ..."
-if ! ssh "$USER@$SERVER" "systemctl --user stop sectalkd"; then
-    echo "✗ Failed to stop sectalkd service"
-    exit 1
-fi
-
-echo "✓ OK"
-
-# Deploy service
-echo "Deploying service ..."
-if ! scp target/release/sectalkd "$USER@$SERVER:$TARGET_SERVER"; then
-    echo "✗ Failed to deploy target/release/sectalkd"
-    exit 1
-fi
-
-echo "✓ OK"
-
-# Start service
-echo "Starting sectalkd service ..."
-if ! ssh "$USER@$SERVER" "
-    systemctl --user daemon-reload &&
-    systemctl --user start sectalkd &&
-    systemctl --user is-active --quiet sectalkd
-"; then
-    echo "✗ Failed to start sectalkd service"
-    exit 1
-fi
-
-echo "✓ OK"
+echo "Deployment complete: $TARGET"
 exit 0
