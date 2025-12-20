@@ -38,6 +38,8 @@ export default defineConfig({
     }
   },
   build: {
+    outDir: '../dist',
+    emptyOutDir: true,
     minify: 'terser',
     terserOptions: {
       format: {
