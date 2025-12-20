@@ -25,6 +25,8 @@ function stripCommentsPlugin() {
 }
 
 export default defineConfig({
+  root: 'websrc',
+  publicDir: false,
   plugins: [react(), tailwindcss(), viteSingleFile(), ViteMinifyPlugin({}), stripCommentsPlugin()],
   server: {
     proxy: {
