@@ -144,7 +144,7 @@ function App() {
           combined.set(tmpSharedKey, roomKey.length);
           skaredKey = new Uint8Array(sha256.arrayBuffer(combined));
           addMessage(
-            <div className="text-gray-400 text-sm">ready to send ephemeral messages to online peer</div>
+            <div className="text-gray-400 text-sm">ready to send messages - peer must be online for delivery</div>
           );
           setPlaceHolder("enter your message")
           appState = AppState.AWAIT_MESSAGES;
@@ -304,7 +304,7 @@ function App() {
         </div>
       </div>
       <div className=" text-gray-400 text-sm">
-        chat peer-to-peer with end-to-end encryption and ephemeral messages
+        chat peer-to-peer with full end-to-end encryption
       </div>
       <div id="hist">
       </div>
