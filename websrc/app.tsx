@@ -102,19 +102,20 @@ function App() {
     }
 
     new MutationObserver(() => {
-      window.scrollTo({
-        top: document.documentElement.scrollHeight,
-        behavior: 'smooth'
-      });
+      const hist = document.getElementById('hist');
+      const lastMessage = hist!.lastElementChild;
+
+      if (lastMessage) {
+        const rect = lastMessage.getBoundingClientRect();
+        const bottomPos = rect.bottom + window.scrollY;
+        const targetScroll = bottomPos - window.innerHeight + 100; // 100px padding
+
+        window.scrollTo({
+          top: Math.max(0, targetScroll),
+          behavior: 'smooth'
+        });
+      }
     }).observe(document.getElementById('hist') as HTMLElement, { childList: true });
-
-    new MutationObserver(() => {
-      window.scrollTo({
-        top: document.documentElement.scrollHeight,
-        behavior: 'smooth'
-      });
-    }).observe(inputRef.current as HTMLElement, { attributes: true });
-
 
     socket.onclose = () => {
       setTerminateApp(true);
