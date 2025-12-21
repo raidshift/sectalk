@@ -10,7 +10,7 @@ import './index.css'
 
 export const AppState = {
   INIT: 'INIT',
-  AWAIT_SECRET_KEY_FROM_USER: 'AWAIT_SECRET_KEY_FROM_USER',
+  AWAIT_PRIVATE_KEY_FROM_USER: 'AWAIT_PRIVATE_KEY_FROM_USER',
   AWAIT_PEER_PUB_KEY_FROM_USER: 'AWAIT_PEER_PUB_KEY_FROM_USER',
   AWAITING_ROOM_ID_FROM_SERVER: 'AWAITING_ROOM_ID_FROM_SERVER',
   AWAIT_MESSAGES: 'AWAIT_MESSAGES',
@@ -82,7 +82,7 @@ function App() {
 
   useEffect(() => {
     const socket = new WebSocket(WS_URL);
-    socket.onopen = () => { appState = AppState.AWAIT_SECRET_KEY_FROM_USER; };
+    socket.onopen = () => { appState = AppState.AWAIT_PRIVATE_KEY_FROM_USER; };
 
     function hideTerminal(hide: boolean) {
       setHiddenTerminal(hide);
@@ -132,9 +132,9 @@ function App() {
       blob.arrayBuffer().then((buffer: any) => {
         const bytes = new Uint8Array(buffer);
 
-        if (appState === AppState.AWAIT_SECRET_KEY_FROM_USER) {
+        if (appState === AppState.AWAIT_PRIVATE_KEY_FROM_USER) {
           verifySigMsg = Uint8Array.from(bytes);
-          setPlaceHolder("enter your secret key");
+          setPlaceHolder("enter your private key");
 
         } else if (appState === AppState.AWAITING_ROOM_ID_FROM_SERVER) {
           const tmpSharedKey = new Uint8Array(keyPair.derive(ELLIPTIC_CURVE.keyFromPublic(peerPublicKey).getPublic()).toArray('be', 32));
@@ -181,7 +181,7 @@ function App() {
     function handleMessage(msg: string) {
       msg = msg.trim();
 
-      if (appState === AppState.AWAIT_SECRET_KEY_FROM_USER) {
+      if (appState === AppState.AWAIT_PRIVATE_KEY_FROM_USER) {
         keyPair = ELLIPTIC_CURVE.keyFromPrivate(new Uint8Array(sha256.arrayBuffer(TEXT_ENCODER.encode(msg))));
         publicKey = new Uint8Array(keyPair.getPublic(true, 'array'));
         publicKey_base58 = bs58.encode(publicKey);
