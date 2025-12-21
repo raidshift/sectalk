@@ -143,9 +143,9 @@ function App() {
           combined.set(roomKey, 0);
           combined.set(tmpSharedKey, roomKey.length);
           skaredKey = new Uint8Array(sha256.arrayBuffer(combined));
-          addMessage(
-            <div className="text-gray-400 text-sm">ready to send messages - peer must be online for delivery</div>
-          );
+          // addMessage(
+          //   <div className="text-gray-400 text-sm">ready</div>
+          // );
           setPlaceHolder("enter your message")
           appState = AppState.AWAIT_MESSAGES;
           setShowMsgBytes(true);
@@ -297,7 +297,7 @@ function App() {
     <>
       <div className="flex text-gray-400 justify-between">
         <div>
-          <span className="text-sm font-bold">sectalk</span>
+          <span className="text-sm italic">sectalk</span>
         </div>
         <div className="text-xs text-gray-700">
           <span className="text-xs"><a href="https://github.com/raidshift/sectalk" target="_blank" className="text-gray-700 hover:text-gray-600">build {version}</a></span>
