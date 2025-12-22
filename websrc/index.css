@@ -37,6 +37,7 @@ li {
 input[type="text"],
 input[type="password"] {
   @apply border-none  outline-none w-full;
+  caret-shape: block;
 }
 
 .spinner {
