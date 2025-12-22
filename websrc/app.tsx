@@ -170,7 +170,7 @@ function App() {
             let hexNonce = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
             const msgElement = document.getElementById(hexNonce);
             if (msgElement) {
-              msgElement.classList.replace('text-emerald-700', 'text-emerald-400');
+              msgElement.classList.replace('text-emerald-900', 'text-emerald-400');
             }
           }
         }
@@ -261,8 +261,8 @@ function App() {
         encryptedMsg.set(ciphertext, nonce.length);
         let hexNonce = Array.from(nonce).map(b => b.toString(16).padStart(2, '0')).join('');
         addMessage(
-          <div className="text-sm">
-            <span className="text-emerald-400">&gt;&nbsp;</span><span className="text-emerald-700" id={hexNonce}>{origMesg}</span>
+          <div className="text-sm text-emerald-900" id={hexNonce}>
+            &gt;&nbsp;{origMesg}
           </div>
         )
 
