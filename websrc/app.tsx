@@ -30,15 +30,12 @@ const WS_URL = `/ws/`;
 
 let verifySigMsg: Uint8Array;
 let keyPair: EC.ec.KeyPair;
-let roomKey: Uint8Array;
-let skaredKey: Uint8Array;
+let sharedKey: Uint8Array;
 let publicKey: Uint8Array = new Uint8Array();
 let peerPublicKey: Uint8Array = new Uint8Array();
 let publicKey_base58: string = "";
 let peerPublicKey_base58: string = "";
 let signature: Uint8Array = new Uint8Array();
-
-
 
 function shorten(str: string, by: number, start: number = 0, sep: string = "") {
   if (!by) { by = 5 }
@@ -138,14 +135,10 @@ function App() {
 
         } else if (appState === AppState.AWAITING_ROOM_ID_FROM_SERVER) {
           const tmpSharedKey = new Uint8Array(keyPair.derive(ELLIPTIC_CURVE.keyFromPublic(peerPublicKey).getPublic()).toArray('be', 32));
-          roomKey = Uint8Array.from(bytes);
-          const combined = new Uint8Array(roomKey.length + tmpSharedKey.length);
-          combined.set(roomKey, 0);
-          combined.set(tmpSharedKey, roomKey.length);
-          skaredKey = new Uint8Array(sha256.arrayBuffer(combined));
-          // addMessage(
-          //   <div className="text-gray-400 text-sm">ready</div>
-          // );
+          const combined = new Uint8Array(bytes.length + tmpSharedKey.length);
+          combined.set(bytes, 0);
+          combined.set(tmpSharedKey, bytes.length);
+          sharedKey = new Uint8Array(sha256.arrayBuffer(combined));
           setPlaceHolder("enter your message")
           appState = AppState.AWAIT_MESSAGES;
           setShowMsgBytes(true);
@@ -156,7 +149,10 @@ function App() {
           } else if (bytes.length === ENCRYPTED_MSG_LEN) {
             const nonce = bytes.slice(0, sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
             const ciphertext = bytes.slice(sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
-            const decryptedMsg = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(null, ciphertext, null, nonce, skaredKey);
+            const combined = new Uint8Array(nonce.length + sharedKey.length);
+            combined.set(nonce, 0);
+            combined.set(sharedKey, nonce.length);
+            const decryptedMsg = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(null, ciphertext, null, nonce, new Uint8Array(sha256.arrayBuffer(combined)));
             let decryptedString = TEXT_DECODER.decode(decryptedMsg);
             let hexNonce = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
             addMessage(
@@ -255,7 +251,10 @@ function App() {
           encodedMsg = encodedMsg.slice(0, MSG_LEN);
         }
         const nonce = sodium.randombytes_buf(sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
-        const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(encodedMsg, null, null, nonce, skaredKey);
+        const combined = new Uint8Array(nonce.length + sharedKey.length);
+        combined.set(nonce, 0);
+        combined.set(sharedKey, nonce.length);
+        const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(encodedMsg, null, null, nonce, new Uint8Array(sha256.arrayBuffer(combined)));
         const encryptedMsg = new Uint8Array(nonce.length + ciphertext.length);
         encryptedMsg.set(nonce);
         encryptedMsg.set(ciphertext, nonce.length);
