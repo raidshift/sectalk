@@ -195,7 +195,7 @@ function App() {
             <MinidenticonImg username={publicKey_base58} />
             <div className="sm:hidden text-emerald-400 mr-1">{shorten(publicKey_base58, 7)}</div>
             <div className="hidden sm:block text-emerald-400 mr-1">{publicKey_base58}</div>
-            <button className="text-xs px-2 py-0.5 border rounded-xl text-emerald-700 hover:text-emerald-500 ml-auto active:text-emerald-400" onClick={() => navigator.clipboard.writeText(publicKey_base58)}>
+            <button className="text-xs px-2 pb-0.5 border rounded-xl text-emerald-700 hover:text-emerald-500 ml-auto active:text-emerald-400" onClick={() => navigator.clipboard.writeText(publicKey_base58)}>
               <div className="flex flex-row justify-center items-center">
                copy
               </div>
