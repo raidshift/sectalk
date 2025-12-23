@@ -1,1 +1,1 @@
-git add . && git commit -m "$(./get_version)" && git push
+git add . && git commit -m "$(./get_web_version)" && git push
