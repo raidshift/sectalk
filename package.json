@@ -24,7 +24,7 @@
     "eslint-plugin-react-hooks": "7.0.1",
     "eslint-plugin-react-refresh": "0.4.26",
     "js-sha256": "0.11.1",
-    "libsodium-wrappers": "0.7.16",
+    "libsodium-wrappers": "0.7.15",
     "minidenticons": "4.2.1",
     "prettier-plugin-tailwindcss": "0.7.2",
     "react": "19.2.3",
