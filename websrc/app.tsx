@@ -195,7 +195,7 @@ function App() {
             <div className="bg-black rounded-xl mr-0.5">
               <MinidenticonImg username={publicKey_base58} />
             </div>
-            <div className="sm:hidden text-emerald-400 mr-1">{shorten(publicKey_base58, 9)}</div>
+            <div className="sm:hidden text-emerald-400 mr-1">{shorten(publicKey_base58, 7)}</div>
             <div className="hidden sm:block text-emerald-400 mr-1">{publicKey_base58}</div>
             <button className="text-xs px-2 pb-0.5 border rounded-xl text-emerald-700 hover:text-emerald-500 ml-auto active:text-emerald-400" onClick={() => navigator.clipboard.writeText(publicKey_base58)}>
               <div className="flex flex-row justify-center items-center">
@@ -229,7 +229,7 @@ function App() {
                 <div className="bg-black rounded-xl mr-0.5">
                   <MinidenticonImg username={peerPublicKey_base58} />
                 </div>
-                <div className="sm:hidden text-sky-400 mr-1">{shorten(peerPublicKey_base58, 9)}</div>
+                <div className="sm:hidden text-sky-400 mr-1">{shorten(peerPublicKey_base58, 7)}</div>
                 <div className="hidden sm:block text-sky-400 mr-1">{peerPublicKey_base58}</div>
               </div>
             );
