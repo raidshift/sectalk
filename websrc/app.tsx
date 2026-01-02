@@ -192,7 +192,7 @@ function App() {
             <div>
               your&nbsp;public&nbsp;key:&nbsp;
             </div>
-            <div className="bg-black rounded-xl mr-0.5">
+            <div className="rounded-xl mr-0.5">
               <MinidenticonImg username={publicKey_base58} />
             </div>
             <div className="sm:hidden text-emerald-400 mr-1">{shorten(publicKey_base58, 7)}</div>
@@ -226,7 +226,7 @@ function App() {
                 <div>
                   peer&nbsp;public&nbsp;key:&nbsp;
                 </div>
-                <div className="bg-black rounded-xl mr-0.5">
+                <div className="rounded-xl mr-0.5">
                   <MinidenticonImg username={peerPublicKey_base58} />
                 </div>
                 <div className="sm:hidden text-sky-400 mr-1">{shorten(peerPublicKey_base58, 7)}</div>
