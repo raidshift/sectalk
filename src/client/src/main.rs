@@ -6,6 +6,7 @@ use crossterm::{
 };
 use futures_util::{SinkExt, StreamExt};
 use hex::ToHex;
+use native_tls::TlsConnector;
 use sectalk::{NONCE_LEN, ZeroizableHash, ZeroizableSecretKey, decrypt, derive_shared_secret, get_message_prefix};
 use std::sync::mpsc;
 use std::thread;
@@ -18,7 +19,7 @@ use std::{
     },
 };
 use tokio_tungstenite::{
-    connect_async,
+    Connector, connect_async_tls_with_config,
     tungstenite::{client::IntoClientRequest, protocol::Message},
 };
 use zeroize::Zeroizing;
@@ -27,8 +28,8 @@ use secp256k1::SecretKey;
 use secp256k1::hashes::Hash;
 use secp256k1::{self, PublicKey, Secp256k1};
 
-// const WS_URL: &str = "ws://sectalk.my.to/ws";
-const WS_URL: &str = "ws://127.0.0.1:3030/ws/";
+const WS_URL: &str = "wss://sectalk.my.to/ws/";
+// const WS_URL: &str = "ws://127.0.0.1:3030/ws/";
 
 enum State {
     AwaitVerifyMsg,
@@ -39,8 +40,9 @@ enum State {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let secp = Secp256k1::new();
+    disable_raw_mode().unwrap();
 
-    println!("sectalk\nA peer-to-peer, end-to-end encrypted messaging protocol");
+    println!("sectalk\nchat peer-to-peer with full end-to-end encryption");
 
     let secret = Zeroizing::new(String::from("a").into_bytes()); //unsafe - read via prompt
 
@@ -60,9 +62,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let shared_secret =
         Zeroizing::new(derive_shared_secret(&secp, hash.0.as_byte_array(), &public_key_b).map_err(|e| e.to_string())?);
 
-    // println!("Your public key: {}", public_key.encode_hex::<String>());
-    // println!("Peer public key: {}", public_key_b.encode_hex::<String>());
-    // println!("Shared secret: {}", shared_secret.encode_hex::<String>());
+    println!("Your public key: {}", public_key.encode_hex::<String>());
+    println!("Peer public key: {}", public_key_b.encode_hex::<String>());
+    println!("Shared secret: {}", shared_secret.encode_hex::<String>());
 
     enable_raw_mode().unwrap();
     let mut stdout = stdout();
@@ -76,9 +78,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (tx, rx) = mpsc::channel();
 
+    let tls_connector = TlsConnector::builder()
+        .danger_accept_invalid_certs(true)
+        .danger_accept_invalid_hostnames(true)
+        .build()?;
+
+    let connector = Connector::NativeTls(tls_connector);
+
     let request = WS_URL.into_client_request()?;
 
-    let ws_connection = connect_async(request).await?;
+    let ws_connection = connect_async_tls_with_config(request, None, false, Some(connector)).await?;
 
     let (ws_write, mut ws_read) = ws_connection.0.split();
 
@@ -124,7 +133,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             new_state = Arc::new(State::AwaitRoomIdFromServer);
                         }
                         State::AwaitRoomIdFromServer => {
-                            tx.send(format!("You joined room {}", msg.encode_hex::<String>())).unwrap();
+                            tx.send(format!("You joined room {}", msg.encode_hex::<String>()))
+                                .unwrap();
                             new_state = Arc::new(State::AwaitMessages);
                         }
                         State::AwaitMessages => {
