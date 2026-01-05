@@ -40,7 +40,6 @@ enum State {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let secp = Secp256k1::new();
-    disable_raw_mode().unwrap();
 
     println!("sectalk\nchat peer-to-peer with full end-to-end encryption");
 
@@ -54,19 +53,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let public_key = PublicKey::from_secret_key(&secp, &secret_key.0).serialize();
 
-    let public_key_b: [u8; 33] = hex::decode("0310c283aac7b35b4ae6fab201d36e8322c3408331149982e16013a5bcb917081c")
-        .unwrap()
-        .try_into()
-        .unwrap();
+    let public_key_peer: [u8; 33] = bs58::decode("upNfYNr7AxPAstsK16GTm9xSRtH1HvgCwTkADMLUjkDy")
+        .into_vec()
+        .ok()
+        .and_then(|bytes| bytes.as_slice().try_into().ok())
+        .ok_or("invalid peer public key")?;
 
-    let shared_secret =
-        Zeroizing::new(derive_shared_secret(&secp, hash.0.as_byte_array(), &public_key_b).map_err(|e| e.to_string())?);
+    let shared_secret = Zeroizing::new(
+        derive_shared_secret(&secp, hash.0.as_byte_array(), &public_key_peer).map_err(|e| e.to_string())?,
+    );
 
-    println!("Your public key: {}", public_key.encode_hex::<String>());
-    println!("Peer public key: {}", public_key_b.encode_hex::<String>());
-    println!("Shared secret: {}", shared_secret.encode_hex::<String>());
+    println!("your public key: {}", bs58::encode(public_key).into_string());
+    println!("peer public key: {}", bs58::encode(public_key_peer).into_string());
+    println!("shared secret: {}", shared_secret.encode_hex::<String>());
 
-    enable_raw_mode().unwrap();
+    struct RawModeGuard;
+
+    impl RawModeGuard {
+        fn new() -> Self {
+            enable_raw_mode().unwrap();
+            Self
+        }
+    }
+
+    impl Drop for RawModeGuard {
+        fn drop(&mut self) {
+            disable_raw_mode().unwrap();
+        }
+    }
+
+    let _guard = RawModeGuard::new();
+
     let mut stdout = stdout();
     let mut input = String::new();
     let mut cursor_pos = 0;
@@ -112,7 +129,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             let ret_msg: Vec<u8> = public_key
                                 .iter()
                                 .copied()
-                                .chain(public_key_b.iter().copied())
+                                .chain(public_key_peer.iter().copied())
                                 .chain(signature.iter().copied())
                                 .collect();
 
@@ -133,8 +150,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             new_state = Arc::new(State::AwaitRoomIdFromServer);
                         }
                         State::AwaitRoomIdFromServer => {
-                            tx.send(format!("You joined room {}", msg.encode_hex::<String>()))
+                            tx.send(format!("room id: {}", msg.encode_hex::<String>()))
                                 .unwrap();
+                            //     Zeroizing::new(derive_shared_secret(&secp, hash.0.as_byte_array(), &public_key_b).map_err(|e| e.to_string())?);
+                            // shared_secret = Zeroizing::new(
+                            //     derive_shared_secret(&secp, hash.0.as_byte_array(), &public_key_b).unwrap(),
+                            // );
                             new_state = Arc::new(State::AwaitMessages);
                         }
                         State::AwaitMessages => {
@@ -236,9 +257,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    disable_raw_mode().unwrap();
-
-    println!("\nDisconnected");
+    execute!(
+        stdout,
+        MoveToNextLine(1),
+        Clear(ClearType::CurrentLine),
+        MoveToColumn(0)
+    )
+    .unwrap();
+    println!("disconnected from server");
+    execute!(
+        stdout,
+        MoveToNextLine(1),
+        Clear(ClearType::CurrentLine),
+        MoveToColumn(0)
+    )
+    .unwrap();
 
     Ok(())
 }
