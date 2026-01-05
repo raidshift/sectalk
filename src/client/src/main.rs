@@ -6,6 +6,7 @@ use crossterm::{
 };
 use futures_util::{SinkExt, StreamExt};
 use hex::ToHex;
+use log::debug;
 use native_tls::TlsConnector;
 use sectalk::{NONCE_LEN, ZeroizableHash, ZeroizableSecretKey, decrypt, derive_shared_secret, get_message_prefix};
 use std::sync::mpsc;
@@ -24,9 +25,10 @@ use tokio_tungstenite::{
 };
 use zeroize::Zeroizing;
 
+use env_logger;
 use secp256k1::SecretKey;
 use secp256k1::hashes::Hash;
-use secp256k1::{self, PublicKey, Secp256k1};
+use secp256k1::{self, PublicKey, Secp256k1}; // Add this line at the top of the file
 
 const WS_URL: &str = "wss://sectalk.my.to/ws/";
 // const WS_URL: &str = "ws://127.0.0.1:3030/ws/";
@@ -39,6 +41,8 @@ enum State {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init(); // Initialize the logger
+
     let secp = Secp256k1::new();
 
     println!("sectalk\nchat peer-to-peer with full end-to-end encryption");
@@ -47,9 +51,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let hash = Zeroizing::new(ZeroizableHash(Hash::hash(&*secret)));
 
-    let secret_key = Zeroizing::new(ZeroizableSecretKey(
-        SecretKey::from_byte_array(*hash.0.as_byte_array()).unwrap(),
-    )); // there is no Drop !!
+    let secret_key = Zeroizing::new(ZeroizableSecretKey(SecretKey::from_byte_array(
+        *hash.0.as_byte_array(),
+    )?)); //  Drop for SecretKey !?
 
     let public_key = PublicKey::from_secret_key(&secp, &secret_key.0).serialize();
 
@@ -65,20 +69,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("your public key: {}", bs58::encode(public_key).into_string());
     println!("peer public key: {}", bs58::encode(public_key_peer).into_string());
-    println!("shared secret: {}", shared_secret.encode_hex::<String>());
+    debug!("shared secret: {}", shared_secret.encode_hex::<String>());
 
     struct RawModeGuard;
 
     impl RawModeGuard {
         fn new() -> Self {
             enable_raw_mode().unwrap();
+            debug!("raw mode enabled");
             Self
         }
     }
 
     impl Drop for RawModeGuard {
         fn drop(&mut self) {
+            execute!(
+                stdout(),
+                MoveToNextLine(1),
+                Clear(ClearType::CurrentLine),
+                MoveToColumn(0)
+            ).unwrap();
+          
+
             disable_raw_mode().unwrap();
+            debug!("raw mode disabled");
         }
     }
 
@@ -150,8 +164,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             new_state = Arc::new(State::AwaitRoomIdFromServer);
                         }
                         State::AwaitRoomIdFromServer => {
-                            tx.send(format!("room id: {}", msg.encode_hex::<String>()))
-                                .unwrap();
+                            tx.send(format!("room id: {}", msg.encode_hex::<String>())).unwrap();
                             //     Zeroizing::new(derive_shared_secret(&secp, hash.0.as_byte_array(), &public_key_b).map_err(|e| e.to_string())?);
                             // shared_secret = Zeroizing::new(
                             //     derive_shared_secret(&secp, hash.0.as_byte_array(), &public_key_b).unwrap(),
@@ -265,13 +278,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )
     .unwrap();
     println!("disconnected from server");
-    execute!(
-        stdout,
-        MoveToNextLine(1),
-        Clear(ClearType::CurrentLine),
-        MoveToColumn(0)
-    )
-    .unwrap();
+    // execute!(
+    //     stdout,
+    //     MoveToNextLine(1),
+    //     Clear(ClearType::CurrentLine),
+    //     MoveToColumn(0)
+    // )
+    // .unwrap();
 
     Ok(())
 }

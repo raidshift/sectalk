@@ -1,3 +1,4 @@
+use log::debug;
 use std::{error::Error, mem, ptr, sync::atomic};
 
 pub const NONCE_LEN: usize = 24;
@@ -20,28 +21,28 @@ struct ZeroizableScalar(Scalar);
 
 impl Zeroize for ZeroizableSecretKey {
     fn zeroize(&mut self) {
-        // println!("*** zeroizing secret key ***");
+        debug!("zeroizing secret key");
         zeroize(&mut self.0);
     }
 }
 
 impl Zeroize for ZeroizablePublicKey {
     fn zeroize(&mut self) {
-        // println!("*** zeroizing public key ***");
+        debug!("zeroizing public key");
         zeroize(&mut self.0);
     }
 }
 
 impl Zeroize for ZeroizableScalar {
     fn zeroize(&mut self) {
-        // println!("*** zeroizing scalar ***");
+        debug!("zeroizing scalar");
         zeroize(&mut self.0);
     }
 }
 
 impl Zeroize for ZeroizableHash {
     fn zeroize(&mut self) {
-        // println!("*** zeroizing hash ***");
+        debug!("zeroizing hash");
         zeroize(&mut self.0);
     }
 }
@@ -51,9 +52,13 @@ pub fn zeroize<T>(z: &mut T) {
 
     let ptr = z as *mut _ as *mut u8;
 
-    // println!("bytes before zeroizing: {:?}", unsafe {
-    //     std::slice::from_raw_parts(ptr, mem::size_of_val(z))
-    // });
+    debug!(
+        " before zeroizing: {:?}",
+        unsafe { std::slice::from_raw_parts(ptr, mem::size_of_val(z)) }
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<String>()
+    );
 
     unsafe {
         for i in 0..mem::size_of_val(z) {
@@ -61,10 +66,14 @@ pub fn zeroize<T>(z: &mut T) {
         }
     }
     atomic::compiler_fence(atomic::Ordering::SeqCst);
-    // println!("zeroized {} bytes", mem::size_of_val(z));
-    // println!("bytes after zeroizing: {:?}", unsafe {
-    //     std::slice::from_raw_parts(ptr, mem::size_of_val(z))
-    // });
+    // debug!("zeroized {} bytes", mem::size_of_val(z));
+    debug!(
+        " after  zeroizing: {:?}",
+        unsafe { std::slice::from_raw_parts(ptr, mem::size_of_val(z)) }
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<String>()
+    );
 }
 
 pub fn encrypt(
@@ -105,9 +114,7 @@ pub fn derive_shared_secret(
 
     let shared_secret_public_key_serialized = Zeroizing::new(shared_secret_public_key.0.serialize());
 
-    Ok(shared_secret_public_key_serialized[1..SEC_KEY_LEN + 1]
-        .try_into()
-        .unwrap())
+    Ok(shared_secret_public_key_serialized[1..SEC_KEY_LEN + 1].try_into()?)
 }
 
 pub fn get_message_prefix(c: &char) -> &'static str {
