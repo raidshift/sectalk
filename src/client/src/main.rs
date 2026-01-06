@@ -41,7 +41,15 @@ enum State {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::init(); // Initialize the logger
+    env_logger::Builder::from_default_env()
+        .filter_level(log::LevelFilter::Debug)
+        .target(env_logger::Target::Pipe(Box::new(
+            std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open("sectalk.log")?
+        )))
+        .init();
 
     let secp = Secp256k1::new();
 
@@ -83,14 +91,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     impl Drop for RawModeGuard {
         fn drop(&mut self) {
-            execute!(
-                stdout(),
-                MoveToNextLine(1),
-                Clear(ClearType::CurrentLine),
-                MoveToColumn(0)
-            ).unwrap();
-          
-
             disable_raw_mode().unwrap();
             debug!("raw mode disabled");
         }
@@ -278,13 +278,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )
     .unwrap();
     println!("disconnected from server");
-    // execute!(
-    //     stdout,
-    //     MoveToNextLine(1),
-    //     Clear(ClearType::CurrentLine),
-    //     MoveToColumn(0)
-    // )
-    // .unwrap();
+    execute!(
+        stdout,
+        MoveToNextLine(1),
+        Clear(ClearType::CurrentLine),
+        MoveToColumn(0)
+    )
+    .unwrap();
 
     Ok(())
 }
