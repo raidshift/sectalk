@@ -8,7 +8,9 @@ use futures_util::{SinkExt, StreamExt};
 use hex::ToHex;
 use log::debug;
 use native_tls::TlsConnector;
-use sectalk::{NONCE_LEN, ZeroizableHash, ZeroizableSecretKey, decrypt, derive_shared_secret, get_message_prefix};
+use sectalk::{
+    NONCE_LEN, PUB_KEY_LEN, ROOM_ID_LEN, ZeroizableHash, ZeroizableSecretKey, decrypt, derive_shared_secret,
+};
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -26,9 +28,12 @@ use tokio_tungstenite::{
 use zeroize::Zeroizing;
 
 use env_logger;
-use secp256k1::SecretKey;
-use secp256k1::hashes::Hash;
-use secp256k1::{self, PublicKey, Secp256k1}; // Add this line at the top of the file
+use secp256k1::hashes::{Hash};
+use secp256k1::{self, PublicKey, Secp256k1};
+use secp256k1::{SecretKey, constants::SECRET_KEY_SIZE}; // Add this line at the top of the file
+
+use rand_chacha::ChaCha20Rng;
+use rand_core::{RngCore, SeedableRng};
 
 const WS_URL: &str = "wss://sectalk.my.to/ws/";
 // const WS_URL: &str = "ws://127.0.0.1:3030/ws/";
@@ -39,6 +44,23 @@ enum State {
     AwaitMessages,
 }
 
+struct RawModeGuard;
+
+impl RawModeGuard {
+    fn new() -> Self {
+        enable_raw_mode().unwrap();
+        debug!("raw mode enabled");
+        Self
+    }
+}
+
+impl Drop for RawModeGuard {
+    fn drop(&mut self) {
+        disable_raw_mode().unwrap();
+        debug!("raw mode disabled");
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_default_env()
@@ -47,9 +69,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             std::fs::OpenOptions::new()
                 .create(true)
                 .append(true)
-                .open("sectalk.log")?
+                .open("sectalk.log")?,
         )))
         .init();
+
+    let mut rng = ChaCha20Rng::try_from_os_rng()?;
 
     let secp = Secp256k1::new();
 
@@ -64,37 +88,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?)); //  Drop for SecretKey !?
 
     let public_key = PublicKey::from_secret_key(&secp, &secret_key.0).serialize();
-
-    let public_key_peer: [u8; 33] = bs58::decode("upNfYNr7AxPAstsK16GTm9xSRtH1HvgCwTkADMLUjkDy")
+    let public_key_peer: [u8; PUB_KEY_LEN] = bs58::decode("upNfYNr7AxPAstsK16GTm9xSRtH1HvgCwTkADMLUjkDy")
         .into_vec()
         .ok()
         .and_then(|bytes| bytes.as_slice().try_into().ok())
         .ok_or("invalid peer public key")?;
 
-    let shared_secret = Zeroizing::new(
-        derive_shared_secret(&secp, hash.0.as_byte_array(), &public_key_peer).map_err(|e| e.to_string())?,
-    );
+    let mut shared_secret = Zeroizing::new([0u8; ROOM_ID_LEN + SECRET_KEY_SIZE]);
+
+    shared_secret[ROOM_ID_LEN..].copy_from_slice(&derive_shared_secret(
+        &secp,
+        hash.0.as_byte_array(),
+        &public_key_peer,
+    )?);
+
+    // let shared_secret = Zeroizing::new(
+    //     derive_shared_secret(&secp, hash.0.as_byte_array(), &public_key_peer).map_err(|e| e.to_string())?,
+    // );
+
+    // let mut room_id = Zeroizing::new([0u8; ROOM_ID_LEN]);
+
+    // let mut room_id: Vec<u8> = Vec::new(); // obtain from server
 
     println!("your public key: {}", bs58::encode(public_key).into_string());
     println!("peer public key: {}", bs58::encode(public_key_peer).into_string());
-    debug!("shared secret: {}", shared_secret.encode_hex::<String>());
-
-    struct RawModeGuard;
-
-    impl RawModeGuard {
-        fn new() -> Self {
-            enable_raw_mode().unwrap();
-            debug!("raw mode enabled");
-            Self
-        }
-    }
-
-    impl Drop for RawModeGuard {
-        fn drop(&mut self) {
-            disable_raw_mode().unwrap();
-            debug!("raw mode disabled");
-        }
-    }
+    debug!("shared secret right: {}", shared_secret.encode_hex::<String>());
 
     let _guard = RawModeGuard::new();
 
@@ -140,12 +158,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             let msg = secp256k1::Message::from_digest(msg.as_ref().try_into().unwrap());
                             let signature_bytes = secp.sign_ecdsa(msg, &secret_key.0).serialize_compact();
                             let signature = signature_bytes.as_ref();
-                            let ret_msg: Vec<u8> = public_key
-                                .iter()
-                                .copied()
-                                .chain(public_key_peer.iter().copied())
-                                .chain(signature.iter().copied())
-                                .collect();
+                            let ret_msg: Vec<u8> = [public_key.as_ref(), &public_key_peer, signature].concat();
 
                             // tx.send(format!(
                             //     "verified = {} ({})",
@@ -164,26 +177,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             new_state = Arc::new(State::AwaitRoomIdFromServer);
                         }
                         State::AwaitRoomIdFromServer => {
-                            tx.send(format!("room id: {}", msg.encode_hex::<String>())).unwrap();
-                            //     Zeroizing::new(derive_shared_secret(&secp, hash.0.as_byte_array(), &public_key_b).map_err(|e| e.to_string())?);
+                            // room_id = msg.to_vec();
+                            tx.send(format!("room id: {}", &msg.encode_hex::<String>())).unwrap();
+                            // Zeroizing::new(derive_shared_secret(&secp, hash.0.as_byte_array(), &public_key_peer).map_err(|e| e.to_string())?);
                             // shared_secret = Zeroizing::new(
                             //     derive_shared_secret(&secp, hash.0.as_byte_array(), &public_key_b).unwrap(),
                             // );
+                            // room_id.copy_from_slice(&msg);
+                            shared_secret[0..ROOM_ID_LEN].copy_from_slice(&msg);
+
                             new_state = Arc::new(State::AwaitMessages);
                         }
                         State::AwaitMessages => {
                             if msg.len() > NONCE_LEN {
+                                let nonce: [u8; NONCE_LEN] = msg[0..NONCE_LEN].try_into().unwrap();
+
+                                let msg_shared_secret = Zeroizing::new([&nonce, shared_secret.as_ref()].concat());
+                                let msg_shared_secret_hash =
+                                    Zeroizing::new(ZeroizableHash(Hash::hash(&*msg_shared_secret)));
+
                                 if let Ok(plain_text) = decrypt(
-                                    &shared_secret,
-                                    &msg[0..NONCE_LEN].try_into().unwrap(),
+                                    msg_shared_secret_hash.0.as_byte_array().try_into().unwrap(),
+                                    &nonce,
                                     &msg[NONCE_LEN..],
                                 ) {
-                                    tx.send(format!(
-                                        "{} {}",
-                                        get_message_prefix(&(plain_text[0] as char)),
-                                        String::from_utf8_lossy(&plain_text[1..]).to_string()
-                                    ))
-                                    .unwrap();
+                                    tx.send(format!("< {}", String::from_utf8_lossy(&plain_text).to_string()))
+                                        .unwrap();
                                 }
                             }
 
@@ -250,6 +269,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 MoveToColumn(0)
                             )
                             .unwrap();
+
+                            let mut nonce = [0u8; NONCE_LEN];
+                            rng.fill_bytes(&mut nonce);
+
+                            //    let ret_msg: Vec<u8> = public_key
+                            // .iter()
+                            // .copied()
+                            // .chain(public_key_peer.iter().copied())
+                            // .chain(signature.iter().copied())
+                            // .collect();
+
+                            //     let combined = nonce.iter()
+                            //         .copied()
+
+                            // let ciphertext = sectalk::encrypt(&shared_secret, &nonce, input.as_bytes()).unwrap();
+
                             ws_write
                                 .lock()
                                 .unwrap()

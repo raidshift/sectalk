@@ -1167,6 +1167,8 @@ dependencies = [
  "hex",
  "log",
  "native-tls",
+ "rand_chacha",
+ "rand_core 0.9.3",
  "secp256k1",
  "tokio",
  "tokio-tungstenite 0.28.0",

@@ -1,6 +1,7 @@
 use log::debug;
 use std::{error::Error, mem, ptr, sync::atomic};
 
+pub const ROOM_ID_LEN: usize = 8;
 pub const NONCE_LEN: usize = 24;
 pub const SEC_KEY_LEN: usize = 32;
 pub const PUB_KEY_LEN: usize = 33;
@@ -105,16 +106,16 @@ pub fn derive_shared_secret(
         Scalar::from_be_bytes(*secret_key).map_err(|e| e.to_string())?,
     ));
 
-    let shared_secret_public_key = Zeroizing::new(ZeroizablePublicKey(
+    let shared_secret = Zeroizing::new(ZeroizablePublicKey(
         PublicKey::from_slice(public_key)
             .map_err(|e| e.to_string())?
             .mul_tweak(secp, &scalar.0)
             .map_err(|e| e.to_string())?,
     ));
 
-    let shared_secret_public_key_serialized = Zeroizing::new(shared_secret_public_key.0.serialize());
+    let shared_secret_serialized = Zeroizing::new(shared_secret.0.serialize());
 
-    Ok(shared_secret_public_key_serialized[1..SEC_KEY_LEN + 1].try_into()?)
+    Ok(shared_secret_serialized[1..PUB_KEY_LEN].try_into()?)
 }
 
 pub fn get_message_prefix(c: &char) -> &'static str {
