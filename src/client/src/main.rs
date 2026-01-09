@@ -8,9 +8,7 @@ use futures_util::{SinkExt, StreamExt};
 use hex::ToHex;
 use log::debug;
 use native_tls::TlsConnector;
-use sectalk::{
-    NONCE_LEN, PUB_KEY_LEN, ROOM_ID_LEN, ZeroizableHash, ZeroizableSecretKey, decrypt, derive_shared_secret,
-};
+use sectalk::{NONCE_LEN, PUB_KEY_LEN, ZeroizableHash, ZeroizableSecretKey, decrypt, derive_shared_secret};
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -28,15 +26,15 @@ use tokio_tungstenite::{
 use zeroize::Zeroizing;
 
 use env_logger;
-use secp256k1::hashes::{Hash};
-use secp256k1::{self, PublicKey, Secp256k1};
-use secp256k1::{SecretKey, constants::SECRET_KEY_SIZE}; // Add this line at the top of the file
+use secp256k1::SecretKey;
+use secp256k1::hashes::Hash;
+use secp256k1::{self, PublicKey, Secp256k1}; // Add this line at the top of the file
 
 use rand_chacha::ChaCha20Rng;
 use rand_core::{RngCore, SeedableRng};
 
-const WS_URL: &str = "wss://sectalk.my.to/ws/";
-// const WS_URL: &str = "ws://127.0.0.1:3030/ws/";
+// const WS_URL: &str = "wss://sectalk.my.to/ws/";
+const WS_URL: &str = "ws://127.0.0.1:3030/ws/";
 
 enum State {
     AwaitVerifyMsg,
@@ -94,17 +92,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .and_then(|bytes| bytes.as_slice().try_into().ok())
         .ok_or("invalid peer public key")?;
 
-    let mut shared_secret = Zeroizing::new([0u8; ROOM_ID_LEN + SECRET_KEY_SIZE]);
+    // let mut shared_secret = Zeroizing::new([0u8; ROOM_ID_LEN + SECRET_KEY_SIZE]);
 
-    shared_secret[ROOM_ID_LEN..].copy_from_slice(&derive_shared_secret(
-        &secp,
-        hash.0.as_byte_array(),
-        &public_key_peer,
-    )?);
+    // shared_secret[ROOM_ID_LEN..].copy_from_slice(&derive_shared_secret(
+    //     &secp,
+    //     hash.0.as_byte_array(),
+    //     &public_key_peer,
+    // )?);
 
-    // let shared_secret = Zeroizing::new(
-    //     derive_shared_secret(&secp, hash.0.as_byte_array(), &public_key_peer).map_err(|e| e.to_string())?,
-    // );
+    let mut shared_secret = Zeroizing::new(derive_shared_secret(&secp, hash.0.as_byte_array(), &public_key_peer)?);
 
     // let mut room_id = Zeroizing::new([0u8; ROOM_ID_LEN]);
 
@@ -184,21 +180,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             //     derive_shared_secret(&secp, hash.0.as_byte_array(), &public_key_b).unwrap(),
                             // );
                             // room_id.copy_from_slice(&msg);
-                            shared_secret[0..ROOM_ID_LEN].copy_from_slice(&msg);
+                            let tmp = Zeroizing::new([&msg, shared_secret.as_ref()].concat());
+                            let hash = Zeroizing::new(ZeroizableHash(Hash::hash(&*tmp)));
+                            shared_secret.copy_from_slice(hash.0.as_byte_array());
 
                             new_state = Arc::new(State::AwaitMessages);
                         }
                         State::AwaitMessages => {
                             if msg.len() > NONCE_LEN {
-                                let nonce: [u8; NONCE_LEN] = msg[0..NONCE_LEN].try_into().unwrap();
-
-                                let msg_shared_secret = Zeroizing::new([&nonce, shared_secret.as_ref()].concat());
-                                let msg_shared_secret_hash =
-                                    Zeroizing::new(ZeroizableHash(Hash::hash(&*msg_shared_secret)));
-
+                                let tmp = Zeroizing::new([&msg[0..NONCE_LEN], shared_secret.as_ref()].concat());
+                                let hash = Zeroizing::new(ZeroizableHash(Hash::hash(&*tmp)));
                                 if let Ok(plain_text) = decrypt(
-                                    msg_shared_secret_hash.0.as_byte_array().try_into().unwrap(),
-                                    &nonce,
+                                    hash.0.as_byte_array().try_into().unwrap(),
+                                    &msg[0..NONCE_LEN].try_into().unwrap(),
                                     &msg[NONCE_LEN..],
                                 ) {
                                     tx.send(format!("< {}", String::from_utf8_lossy(&plain_text).to_string()))
