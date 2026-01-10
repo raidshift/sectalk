@@ -173,13 +173,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             new_state = Arc::new(State::AwaitRoomIdFromServer);
                         }
                         State::AwaitRoomIdFromServer => {
-                            // room_id = msg.to_vec();
-                            tx.send(format!("room id: {}", &msg.encode_hex::<String>())).unwrap();
-                            // Zeroizing::new(derive_shared_secret(&secp, hash.0.as_byte_array(), &public_key_peer).map_err(|e| e.to_string())?);
-                            // shared_secret = Zeroizing::new(
-                            //     derive_shared_secret(&secp, hash.0.as_byte_array(), &public_key_b).unwrap(),
-                            // );
-                            // room_id.copy_from_slice(&msg);
+                            // tx.send(format!("room id: {}", &msg.encode_hex::<String>())).unwrap();
+
                             let tmp = Zeroizing::new([&msg, shared_secret.as_ref()].concat());
                             let hash = Zeroizing::new(ZeroizableHash(Hash::hash(&*tmp)));
                             shared_secret.copy_from_slice(hash.0.as_byte_array());
@@ -196,6 +191,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     &msg[NONCE_LEN..],
                                 ) {
                                     tx.send(format!("< {}", String::from_utf8_lossy(&plain_text).to_string()))
+                                        .unwrap();
+
+                                    thread_ws_write
+                                        .lock()
+                                        .unwrap()
+                                        .send(Message::Binary(msg[0..NONCE_LEN].to_vec().into()))
+                                        .await
                                         .unwrap();
                                 }
                             }
