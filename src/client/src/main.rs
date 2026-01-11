@@ -9,9 +9,8 @@ use hex::ToHex;
 use log::debug;
 use native_tls::TlsConnector;
 use sectalk::{
-    NONCE_LEN, PUB_KEY_LEN, ZeroizableHash, ZeroizableSecretKey, decrypt, derive_shared_secret, get_byte_idx,
+    NONCE_LEN, PROMPT_LEN, PUB_KEY_LEN, ZeroizableHash, ZeroizableSecretKey, decrypt, derive_shared_secret, get_byte_idx
 };
-use unicode_segmentation::UnicodeSegmentation;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -26,6 +25,7 @@ use tokio_tungstenite::{
     Connector, connect_async_tls_with_config,
     tungstenite::{client::IntoClientRequest, protocol::Message},
 };
+use unicode_segmentation::UnicodeSegmentation;
 use zeroize::Zeroizing;
 
 use env_logger;
@@ -35,6 +35,7 @@ use secp256k1::{self, PublicKey, Secp256k1}; // Add this line at the top of the 
 
 use rand_chacha::ChaCha20Rng;
 use rand_core::{RngCore, SeedableRng};
+use unicode_width::UnicodeWidthStr;
 
 // const WS_URL: &str = "wss://sectalk.my.to/ws/";
 const WS_URL: &str = "ws://127.0.0.1:3030/ws/";
@@ -240,7 +241,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Event::Key(key_event) = event::read().unwrap() {
                 match key_event.code {
                     KeyCode::Char(c) => {
-                       if input.len() + c.len_utf8() <= 10 {
+                        if input.len() + c.len_utf8() <= 10 {
                             input.insert(get_byte_idx(&input, cursor_pos), c);
                             cursor_pos += 1;
                         }
@@ -330,9 +331,10 @@ fn print_prompt(input: &str, cursor_pos: usize) {
     execute!(stdout, MoveToColumn(0), Clear(ClearType::CurrentLine)).unwrap();
 
     print!("> {}", input);
-    let prompt_len = 2; // "> "
-    let target_col = (prompt_len + cursor_pos) as u16;
-    execute!(stdout, MoveToColumn(target_col)).unwrap();
 
+    let display_width = input.graphemes(true).take(cursor_pos).collect::<String>().width();
+    let target_col = (PROMPT_LEN + display_width) as u16;
+
+    execute!(stdout, MoveToColumn(target_col)).unwrap();
     stdout.flush().unwrap();
 }

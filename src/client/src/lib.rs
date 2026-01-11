@@ -1,6 +1,7 @@
 use log::debug;
 use unicode_segmentation::UnicodeSegmentation;
 use std::{error::Error, mem, ptr, sync::atomic};
+pub const PROMPT_LEN : usize = 2; // "> "
 
 pub const ROOM_ID_LEN: usize = 8;
 pub const NONCE_LEN: usize = 24;
