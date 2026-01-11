@@ -9,7 +9,8 @@ use hex::ToHex;
 use log::debug;
 use native_tls::TlsConnector;
 use sectalk::{
-    NONCE_LEN, PROMPT_LEN, PUB_KEY_LEN, ZeroizableHash, ZeroizableSecretKey, decrypt, derive_shared_secret, get_byte_idx
+    MSG_LEN, NONCE_LEN, PROMPT_LEN, PUB_KEY_LEN, ZeroizableHash, ZeroizableSecretKey, decrypt, derive_shared_secret,
+    get_byte_idx,
 };
 use std::sync::mpsc;
 use std::thread;
@@ -241,7 +242,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Event::Key(key_event) = event::read().unwrap() {
                 match key_event.code {
                     KeyCode::Char(c) => {
-                        if input.len() + c.len_utf8() <= 10 {
+                        if !(input.is_empty() && c == ' ') && input.len() + c.len_utf8() <= MSG_LEN {
                             input.insert(get_byte_idx(&input, cursor_pos), c);
                             cursor_pos += 1;
                         }
