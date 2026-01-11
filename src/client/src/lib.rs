@@ -1,4 +1,5 @@
 use log::debug;
+use unicode_segmentation::UnicodeSegmentation;
 use std::{error::Error, mem, ptr, sync::atomic};
 
 pub const ROOM_ID_LEN: usize = 8;
@@ -124,4 +125,8 @@ pub fn get_message_prefix(c: &char) -> &'static str {
         'B' => "<",
         _ => "?",
     }
+}
+
+pub fn get_byte_idx(s: &str, cursor_pos: usize) -> usize {
+    s.grapheme_indices(true).nth(cursor_pos).map(|(idx, _)| idx).unwrap_or(s.len())
 }

@@ -8,7 +8,10 @@ use futures_util::{SinkExt, StreamExt};
 use hex::ToHex;
 use log::debug;
 use native_tls::TlsConnector;
-use sectalk::{NONCE_LEN, PUB_KEY_LEN, ZeroizableHash, ZeroizableSecretKey, decrypt, derive_shared_secret};
+use sectalk::{
+    NONCE_LEN, PUB_KEY_LEN, ZeroizableHash, ZeroizableSecretKey, decrypt, derive_shared_secret, get_byte_idx,
+};
+use unicode_segmentation::UnicodeSegmentation;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -237,8 +240,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Event::Key(key_event) = event::read().unwrap() {
                 match key_event.code {
                     KeyCode::Char(c) => {
-                        input.insert(cursor_pos, c);
-                        cursor_pos += 1;
+                       if input.len() + c.len_utf8() <= 10 {
+                            input.insert(get_byte_idx(&input, cursor_pos), c);
+                            cursor_pos += 1;
+                        }
                     }
                     KeyCode::Left => {
                         if cursor_pos > 0 {
@@ -246,13 +251,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                     KeyCode::Right => {
-                        if cursor_pos < input.len() {
+                        if cursor_pos < input.graphemes(true).count() {
                             cursor_pos += 1;
                         }
                     }
                     KeyCode::Backspace => {
                         if cursor_pos > 0 {
-                            input.remove(cursor_pos - 1);
+                            input.remove(get_byte_idx(&input, cursor_pos - 1));
                             cursor_pos -= 1;
                         }
                     }
