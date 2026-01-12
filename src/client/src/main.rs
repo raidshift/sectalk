@@ -270,12 +270,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                             let mut msg = Zeroizing::new([0x20u8; MSG_LEN]);
 
-                            msg[..input.len()].copy_from_slice(input.as_bytes());
-
-                            // if trimmed.len()< MSG_LEN {
-                            //     // pad with blanks to MSG_LEN
-                            //     trimmed.extend(std::iter::repeat(' ').take(MSG_LEN - trimmed.len()));
-                            // }
+                            msg[..input.len()].copy_from_slice(input.trim().as_bytes());
 
                             println!("{}", msg.len());
 
