@@ -268,6 +268,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             let mut nonce = [0u8; NONCE_LEN];
                             rng.fill_bytes(&mut nonce);
 
+                            let mut msg = Zeroizing::new([0x20u8; MSG_LEN]);
+
+                            msg[..input.len()].copy_from_slice(input.as_bytes());
+
+                            // if trimmed.len()< MSG_LEN {
+                            //     // pad with blanks to MSG_LEN
+                            //     trimmed.extend(std::iter::repeat(' ').take(MSG_LEN - trimmed.len()));
+                            // }
+
+                            println!("{}", msg.len());
+
                             // let tmp = Zeroizing::new([&msg[0..NONCE_LEN], shared_secret.as_ref()].concat());
                             // let hash = Zeroizing::new(ZeroizableHash(Hash::hash(&*tmp)));
 
