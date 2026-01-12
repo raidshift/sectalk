@@ -225,17 +225,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             break;
         }
         if let Ok(message) = rx.try_recv() {
-            let current_input = input.clone();
-            let current_pos = cursor_pos;
             execute!(stdout, MoveToColumn(0), Clear(ClearType::CurrentLine)).unwrap();
-
-            println!("{message}");
-
-            print_prompt(&current_input, current_pos);
-            input = current_input;
-            cursor_pos = current_pos;
-
-            stdout.flush().unwrap();
+            println!("{}", message.trim());
+            print_prompt(&input, cursor_pos);
         }
 
         if event::poll(Duration::from_millis(100)).unwrap() {
@@ -275,6 +267,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                             let mut nonce = [0u8; NONCE_LEN];
                             rng.fill_bytes(&mut nonce);
+
+                            // let tmp = Zeroizing::new([&msg[0..NONCE_LEN], shared_secret.as_ref()].concat());
+                            // let hash = Zeroizing::new(ZeroizableHash(Hash::hash(&*tmp)));
 
                             //    let ret_msg: Vec<u8> = public_key
                             // .iter()
