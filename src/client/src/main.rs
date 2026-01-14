@@ -5,7 +5,7 @@ use crossterm::{
     terminal::{Clear, ClearType, disable_raw_mode, enable_raw_mode},
 };
 use futures_util::{SinkExt, StreamExt};
-use hex::ToHex;
+// use hex::ToHex;
 use log::debug;
 use native_tls::TlsConnector;
 use sectalk::{
@@ -105,7 +105,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     //     &public_key_peer,
     // )?);
 
-    let mut shared_secret = Zeroizing::new(derive_shared_secret(&secp, hash.0.as_byte_array(), &public_key_peer)?);
+    // let mut shared_secret = Zeroizing::new(derive_shared_secret(&secp, hash.0.as_byte_array(), &public_key_peer)?);
+
+    let shared_secret = Arc::new(Mutex::new(Zeroizing::new(derive_shared_secret(
+        &secp,
+        hash.0.as_byte_array(),
+        &public_key_peer,
+    )?)));
 
     // let mut room_id = Zeroizing::new([0u8; ROOM_ID_LEN]);
 
@@ -113,7 +119,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("your public key: {}", bs58::encode(public_key).into_string());
     println!("peer public key: {}", bs58::encode(public_key_peer).into_string());
-    debug!("shared secret right: {}", shared_secret.encode_hex::<String>());
+    // debug!("shared secret right: {}", shared_secret.encode_hex::<String>());
 
     let _guard = RawModeGuard::new();
 
@@ -146,6 +152,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let runtime = tokio::runtime::Runtime::new()?;
 
+    let thread_shared_secret = shared_secret.clone();
     thread::spawn(move || {
         runtime.block_on(async {
             while let Some(msg) = ws_read.next().await {
@@ -180,15 +187,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         State::AwaitRoomIdFromServer => {
                             // tx.send(format!("room id: {}", &msg.encode_hex::<String>())).unwrap();
 
-                            let tmp = Zeroizing::new([&msg, shared_secret.as_ref()].concat());
+                            let mut shared_secret_guard = thread_shared_secret.lock().unwrap();
+
+                            let tmp = Zeroizing::new([&msg, shared_secret_guard.as_ref()].concat());
                             let hash = Zeroizing::new(ZeroizableHash(Hash::hash(&*tmp)));
-                            shared_secret.copy_from_slice(hash.0.as_byte_array());
+                            shared_secret_guard.copy_from_slice(hash.0.as_byte_array());
 
                             new_state = Arc::new(State::AwaitMessages);
                         }
                         State::AwaitMessages => {
                             if msg.len() > NONCE_LEN {
-                                let tmp = Zeroizing::new([&msg[0..NONCE_LEN], shared_secret.as_ref()].concat());
+                                let shared_secret_guard = thread_shared_secret.lock().unwrap();
+                                let tmp = Zeroizing::new([&msg[0..NONCE_LEN], shared_secret_guard.as_ref()].concat());
+
                                 let hash = Zeroizing::new(ZeroizableHash(Hash::hash(&*tmp)));
                                 if let Ok(plain_text) = decrypt(
                                     hash.0.as_byte_array().try_into().unwrap(),
@@ -273,10 +284,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             msg[..input.len()]
                                 .copy_from_slice(input[..std::cmp::min(input.len(), MSG_LEN)].trim().as_bytes());
 
-                            println!("{}", msg.len());
+                            let shared_secret_guard = shared_secret.lock().unwrap();
 
-                            // let tmp = Zeroizing::new([&msg[0..NONCE_LEN], shared_secret.as_ref()].concat());
-                            // let hash = Zeroizing::new(ZeroizableHash(Hash::hash(&*tmp)));
+                            let tmp = Zeroizing::new([nonce.as_ref(), shared_secret_guard.as_ref()].concat());
+                            let hash = Zeroizing::new(ZeroizableHash(Hash::hash(&*tmp)));
+
+                            let ciphertext = sectalk::encrypt(&hash.0.as_byte_array(), &nonce, msg.as_ref()).unwrap();
 
                             //    let ret_msg: Vec<u8> = public_key
                             // .iter()
@@ -288,14 +301,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             //     let combined = nonce.iter()
                             //         .copied()
 
-                            // let ciphertext = sectalk::encrypt(&shared_secret, &nonce, input.as_bytes()).unwrap();
+                            // let ciphertext = sectalk::encrypt(&shared_secret_guard, &nonce, input.as_bytes()).unwrap();
 
-                            ws_write
-                                .lock()
-                                .unwrap()
-                                .send(Message::Binary((input.clone()).into_bytes().into()))
-                                .await
-                                .unwrap();
+                            ws_write.lock().unwrap().send(ciphertext.into()).await.unwrap();
                             input.clear();
                             cursor_pos = 0;
                         }
