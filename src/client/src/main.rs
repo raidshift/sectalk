@@ -289,7 +289,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             let tmp = Zeroizing::new([nonce.as_ref(), shared_secret_guard.as_ref()].concat());
                             let hash = Zeroizing::new(ZeroizableHash(Hash::hash(&*tmp)));
 
-                            let ciphertext = sectalk::encrypt(&hash.0.as_byte_array(), &nonce, msg.as_ref()).unwrap();
+                            // let ciphertext = sectalk::encrypt(&hash.0.as_byte_array(), &nonce, msg.as_ref()).unwrap();
+
+                            let ciphertext = [
+                                nonce.as_ref(),
+                                sectalk::encrypt(&hash.0.as_byte_array(), &nonce, msg.as_ref())
+                                    .unwrap()
+                                    .as_ref(),
+                            ]
+                            .concat();
+
+                            // print!("ciphertext len: {}\n", ciphertext.len());
 
                             //    let ret_msg: Vec<u8> = public_key
                             // .iter()
