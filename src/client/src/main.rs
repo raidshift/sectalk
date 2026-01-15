@@ -277,8 +277,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                             let input_trimmed = input.trim();
 
-                              tx_clone.send(format!("> {}", input_trimmed))
-                                        .unwrap();
+                            tx_clone.send(format!("> {}", input_trimmed)).unwrap();
                             let len = std::cmp::min(input_trimmed.len(), MSG_LEN);
 
                             msg[..len].copy_from_slice(&input_trimmed[..len].as_bytes());
