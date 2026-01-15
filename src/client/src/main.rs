@@ -134,6 +134,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (tx, rx) = mpsc::channel();
 
+    let tx_clone = tx.clone();
+
     let tls_connector = TlsConnector::builder()
         .danger_accept_invalid_certs(true)
         .danger_accept_invalid_hostnames(true)
@@ -160,20 +162,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let new_state: Arc<State>;
                     match *state {
                         State::AwaitVerifyMsg => {
-                            // tx.send(format!("verify_sig_msg = {}", msg.encode_hex::<String>()))
-                            //     .unwrap();
+                            // tx.send(format!("verify_sig_msg = {}", msg.encode_hex::<String>())).unwrap();
 
                             let msg = secp256k1::Message::from_digest(msg.as_ref().try_into().unwrap());
                             let signature_bytes = secp.sign_ecdsa(msg, &secret_key.0).serialize_compact();
                             let signature = signature_bytes.as_ref();
                             let ret_msg: Vec<u8> = [public_key.as_ref(), &public_key_peer, signature].concat();
-
-                            // tx.send(format!(
-                            //     "verified = {} ({})",
-                            //     ret_msg.encode_hex::<String>(),
-                            //     ret_msg.len()
-                            // ))
-                            // .unwrap();
 
                             thread_ws_write
                                 .lock()
@@ -279,10 +273,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             let mut nonce = [0u8; NONCE_LEN];
                             rng.fill_bytes(&mut nonce);
 
-                            let mut msg = Zeroizing::new([0x20u8; MSG_LEN]);
+                            let mut msg = [0x20u8; MSG_LEN];
 
-                            msg[..input.len()]
-                                .copy_from_slice(input[..std::cmp::min(input.len(), MSG_LEN)].trim().as_bytes());
+                            let input_trimmed = input.trim();
+
+                              tx_clone.send(format!("> {}", input_trimmed))
+                                        .unwrap();
+                            let len = std::cmp::min(input_trimmed.len(), MSG_LEN);
+
+                            msg[..len].copy_from_slice(&input_trimmed[..len].as_bytes());
 
                             let shared_secret_guard = shared_secret.lock().unwrap();
 
