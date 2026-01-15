@@ -5,7 +5,6 @@ use crossterm::{
     terminal::{Clear, ClearType, disable_raw_mode, enable_raw_mode},
 };
 use futures_util::{SinkExt, StreamExt};
-// use hex::ToHex;
 use log::debug;
 use native_tls::TlsConnector;
 use sectalk::{
@@ -32,7 +31,7 @@ use zeroize::Zeroizing;
 use env_logger;
 use secp256k1::SecretKey;
 use secp256k1::hashes::Hash;
-use secp256k1::{self, PublicKey, Secp256k1}; // Add this line at the top of the file
+use secp256k1::{self, PublicKey, Secp256k1};
 
 use rand_chacha::ChaCha20Rng;
 use rand_core::{RngCore, SeedableRng};
@@ -82,13 +81,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("sectalk\nchat peer-to-peer with full end-to-end encryption");
 
-    let secret = Zeroizing::new(String::from("a").into_bytes()); //unsafe - read via prompt
+    let secret = Zeroizing::new(String::from("a").into_bytes());
 
     let hash = Zeroizing::new(ZeroizableHash(Hash::hash(&*secret)));
 
     let secret_key = Zeroizing::new(ZeroizableSecretKey(SecretKey::from_byte_array(
         *hash.0.as_byte_array(),
-    )?)); //  Drop for SecretKey !?
+    )?));
 
     let public_key = PublicKey::from_secret_key(&secp, &secret_key.0).serialize();
     let public_key_peer: [u8; PUB_KEY_LEN] = bs58::decode("upNfYNr7AxPAstsK16GTm9xSRtH1HvgCwTkADMLUjkDy")
@@ -97,29 +96,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .and_then(|bytes| bytes.as_slice().try_into().ok())
         .ok_or("invalid peer public key")?;
 
-    // let mut shared_secret = Zeroizing::new([0u8; ROOM_ID_LEN + SECRET_KEY_SIZE]);
-
-    // shared_secret[ROOM_ID_LEN..].copy_from_slice(&derive_shared_secret(
-    //     &secp,
-    //     hash.0.as_byte_array(),
-    //     &public_key_peer,
-    // )?);
-
-    // let mut shared_secret = Zeroizing::new(derive_shared_secret(&secp, hash.0.as_byte_array(), &public_key_peer)?);
-
     let shared_secret = Arc::new(Mutex::new(Zeroizing::new(derive_shared_secret(
         &secp,
         hash.0.as_byte_array(),
         &public_key_peer,
     )?)));
 
-    // let mut room_id = Zeroizing::new([0u8; ROOM_ID_LEN]);
-
-    // let mut room_id: Vec<u8> = Vec::new(); // obtain from server
-
     println!("your public key: {}", bs58::encode(public_key).into_string());
     println!("peer public key: {}", bs58::encode(public_key_peer).into_string());
-    // debug!("shared secret right: {}", shared_secret.encode_hex::<String>());
 
     let _guard = RawModeGuard::new();
 
@@ -162,8 +146,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let new_state: Arc<State>;
                     match *state {
                         State::AwaitVerifyMsg => {
-                            // tx.send(format!("verify_sig_msg = {}", msg.encode_hex::<String>())).unwrap();
-
                             let msg = secp256k1::Message::from_digest(msg.as_ref().try_into().unwrap());
                             let signature_bytes = secp.sign_ecdsa(msg, &secret_key.0).serialize_compact();
                             let signature = signature_bytes.as_ref();
@@ -179,8 +161,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             new_state = Arc::new(State::AwaitRoomIdFromServer);
                         }
                         State::AwaitRoomIdFromServer => {
-                            // tx.send(format!("room id: {}", &msg.encode_hex::<String>())).unwrap();
-
                             let mut shared_secret_guard = thread_shared_secret.lock().unwrap();
 
                             let tmp = Zeroizing::new([&msg, shared_secret_guard.as_ref()].concat());
