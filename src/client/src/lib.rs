@@ -4,6 +4,7 @@ use std::{error::Error, mem, ptr, sync::atomic};
 
 pub const PROMPT_LEN : usize = 2; // "> "
 pub const MSG_LEN : usize = 100;
+pub const ENCRYPTED_MSG_LEN: usize = NONCE_LEN + MSG_LEN + 16; // nonce + ciphertext + auth tag
 
 pub const ROOM_ID_LEN: usize = 8;
 pub const NONCE_LEN: usize = 24;

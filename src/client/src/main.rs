@@ -8,8 +8,7 @@ use futures_util::{SinkExt, StreamExt};
 use log::debug;
 use native_tls::TlsConnector;
 use sectalk::{
-    MSG_LEN, NONCE_LEN, PROMPT_LEN, PUB_KEY_LEN, ZeroizableHash, ZeroizableSecretKey, decrypt, derive_shared_secret,
-    get_byte_idx,
+    ENCRYPTED_MSG_LEN, MSG_LEN, NONCE_LEN, PROMPT_LEN, PUB_KEY_LEN, ZeroizableHash, ZeroizableSecretKey, decrypt, derive_shared_secret, get_byte_idx
 };
 use std::sync::mpsc;
 use std::thread;
@@ -170,7 +169,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             new_state = Arc::new(State::AwaitMessages);
                         }
                         State::AwaitMessages => {
-                            if msg.len() > NONCE_LEN {
+                            if msg.len() == NONCE_LEN || msg.len() == ENCRYPTED_MSG_LEN {
                                 let shared_secret_guard = thread_shared_secret.lock().unwrap();
                                 let tmp = Zeroizing::new([&msg[0..NONCE_LEN], shared_secret_guard.as_ref()].concat());
 
@@ -190,6 +189,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         .await
                                         .unwrap();
                                 }
+                            } else {
+                                  should_exit_ws.store(true, Ordering::SeqCst);
                             }
 
                             new_state = Arc::new(State::AwaitMessages);
