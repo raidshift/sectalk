@@ -123,14 +123,6 @@ pub fn derive_shared_secret(
     Ok(shared_secret_serialized[1..PUB_KEY_LEN].try_into()?)
 }
 
-pub fn get_message_prefix(c: &char) -> &'static str {
-    match c {
-        'A' => ">",
-        'B' => "<",
-        _ => "?",
-    }
-}
-
 pub fn get_byte_idx(s: &str, cursor_pos: usize) -> usize {
     s.grapheme_indices(true).nth(cursor_pos).map(|(idx, _)| idx).unwrap_or(s.len())
 }
