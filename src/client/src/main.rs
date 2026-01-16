@@ -36,8 +36,8 @@ use rand_chacha::ChaCha20Rng;
 use rand_core::{RngCore, SeedableRng};
 use unicode_width::UnicodeWidthStr;
 
-// const WS_URL: &str = "wss://sectalk.my.to/ws/";
-const WS_URL: &str = "ws://127.0.0.1:3030/ws/";
+const WS_URL: &str = "wss://sectalk.my.to/ws/";
+// const WS_URL: &str = "ws://127.0.0.1:3030/ws/";
 
 enum State {
     AwaitVerifyMsg,
